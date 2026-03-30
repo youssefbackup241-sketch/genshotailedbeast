@@ -255,6 +255,110 @@ function createProgressBar(current, max) {
 }
 
 // ─────────────────────────────────────────────
+// Low-Effort Detection
+// ─────────────────────────────────────────────
+
+/**
+ * Returns true if the answer is too short or contains only a
+ * low-effort token (nothing, idk, no, yes, nah, yep, maybe, idc, etc.).
+ * Minimum bar: at least 2 words AND at least 5 characters.
+ */
+function isLowEffort(answer) {
+  const trimmed = answer.trim();
+
+  // Hard length gates
+  if (trimmed.length < 5) return true;
+  const wordCount = trimmed.split(/\s+/).filter(w => w.length > 0).length;
+  if (wordCount < 2) return true;
+
+  // Single-token dismissive answers that slip past the length gate
+  const lowEffortPatterns = [
+    /^(nothing\.?|nothin\.?)$/i,
+    /^(idk|i don'?t know|dunno|duno)[.!?]*$/i,
+    /^(no|nope|nah|nuh-?uh)[.!?]*$/i,
+    /^(yes|yeah|yep|yup|yea)[.!?]*$/i,
+    /^(maybe|idc|i don'?t care|whatever|w\/e|meh|eh)[.!?]*$/i,
+    /^(ok|okay|sure|fine|alright|k)[.!?]*$/i,
+    /^(lol|lmao|haha|hehe|xd)[.!?]*$/i,
+    /^(nothing much|not much|not really|not sure)[.!?]*$/i,
+    /^(no idea|no clue|no answer)[.!?]*$/i,
+    /^(yes sir|yes ma'?am|yes please)[.!?]*$/i
+  ];
+
+  return lowEffortPatterns.some(p => p.test(trimmed));
+}
+
+/**
+ * Beast-specific disdain lines for automatic 0-point low-effort answers.
+ * Each beast gets 5 rotating lines that reflect their unique personality.
+ */
+const LOW_EFFORT_RESPONSES = {
+  shukaku: [
+    "THAT'S your answer?! Ore-sama didn't waste his legendary presence on THIS! A sandcastle has more depth than you!",
+    "Pathetic. Even the grains of sand in my desert have more to say. Try HARDER, or don't bother Ore-sama at all!",
+    "HA! Is that a joke?! Ore-sama is the greatest sealing beast in existence and you respond with THAT?! Zero. ZERO points. Begone!",
+    "I've heard more from the wind whistling through empty dunes. That answer is as hollow as a sand castle with no walls!",
+    "Ore-sama is INSULTED. Not even insulted enough to be angry — just... disappointed. And Ore-sama doesn't DO disappointed!"
+  ],
+  matatabi: [
+    "How... disappointing. I expected at least a flicker of thought, yet you offer me ash. Zero points, and I suggest you reflect on why.",
+    "A cat always lands on its feet. You, however, have not even left the ground. That answer earns you nothing.",
+    "I have watched centuries of human conversation. That response is among the least worthy I have ever witnessed. Zero.",
+    "Elegance requires effort. You have offered neither. I award you no points, and I hope the silence teaches you something.",
+    "My blue flames burn for those who think. You have not thought. Not even a little. Zero points — and I am being generous."
+  ],
+  isobu: [
+    "Oh... I was hoping for... something. Anything. But you gave me... nothing. Zero points. I'll just... go back to the deep.",
+    "That answer made me want to retreat even further into the ocean. Zero points. Please... try again next time.",
+    "I... I don't ask for much. Just a little thought. You couldn't even give me that. Zero points.",
+    "The silence of the deep is peaceful. Your answer was just... empty. There's a difference. Zero points.",
+    "Even a pebble dropped in still water makes ripples. Your answer made none. Zero points."
+  ],
+  songoku: [
+    "A WARRIOR answers with conviction! That was not an answer — that was a surrender! Zero points, and you dishonor this session!",
+    "Son Gokū, the Great Sage Equaling Heaven, deserves MORE than that! You have wasted both our time. Zero points!",
+    "I have faced armies. I have faced Kage. I have NEVER been this unimpressed. Zero points. Come back when you have something to say.",
+    "Honor demands effort. You have shown none. A true warrior would be ashamed. Zero points.",
+    "That answer is not worthy of my name, let alone my time. Zero points. Train your mind before you speak to me again."
+  ],
+  kokou: [
+    "...I asked for meaning. You gave me nothing. The wind carries more substance than your words. Zero points.",
+    "Even silence has depth. Your answer had none. Zero points — and I say this without anger, only sorrow.",
+    "A horse runs toward the horizon. You have not even lifted your head. Zero points.",
+    "I do not waste words. Neither should you — but at least say something worth hearing. Zero points.",
+    "The plains stretch endlessly, full of possibility. Your answer was a closed door. Zero points."
+  ],
+  saiken: [
+    "Oh... oh dear. I was hoping for something warm, something real. But that answer just... popped. Like an empty bubble. Zero points.",
+    "Even the smallest bubble has beauty inside it. Your answer had nothing inside at all. Zero points, and I'm a little sad.",
+    "I believe in kindness, but kindness doesn't mean pretending that was a real answer. It wasn't. Zero points.",
+    "Utakata poured his heart into every bubble. You couldn't pour even a drop of thought into that answer. Zero points.",
+    "That answer dissolved before it even formed. Zero points. I hope the next one has more... substance."
+  ],
+  chomei: [
+    "Aww, come ON! That's not an answer, that's a SNOOZE BUTTON! Lucky seven says you can do WAY better! Zero points!",
+    "NOT LUCKY! That answer has zero energy, zero effort, zero everything! Zero points — and I say that with love, but also disappointment!",
+    "I flew all the way here for THAT?! Even a caterpillar tries harder before it becomes a butterfly! Zero points!",
+    "Lucky seven is NOT on your side today! That answer was the opposite of lucky! Zero points — try again with some ENTHUSIASM!",
+    "Fū would never give up like that! She always tried! You gave me nothing! Zero points, and I'm rooting for you to do better!"
+  ],
+  gyuki: [
+    "That's not an answer. That's a forfeit. And I don't respect forfeits. Zero points — no excuses.",
+    "Killer B would be embarrassed for you right now. That answer had no discipline, no thought, no effort. Zero points.",
+    "I've tested jinchuriki who couldn't handle my power. You can't even handle a question. Zero points.",
+    "A warrior's mind is their sharpest weapon. Yours is clearly unsharpened. Zero points. Go train.",
+    "I've seen ink dry with more purpose than that answer. Zero points. Don't waste my time again."
+  ],
+  kurama: [
+    "Hmph. Centuries of hatred, and THIS is what you offer me? Not even worth my contempt. Zero points.",
+    "I've been used as a weapon of war, sealed against my will, and treated like a monster — and you can't even form a real answer? Zero points.",
+    "Naruto faced me without fear and spoke from his soul. You gave me nothing. Zero. Don't insult me like this again.",
+    "I can sense emotions, you know. Right now I sense laziness. Pure, unfiltered laziness. Zero points.",
+    "Every jinchuriki who ever tried to control me at least had the nerve to try. You didn't even do that. Zero points."
+  ]
+};
+
+// ─────────────────────────────────────────────
 // Insult Filter
 // ─────────────────────────────────────────────
 function checkForInsult(answer) {
@@ -286,14 +390,22 @@ function checkForInsult(answer) {
 async function evaluateAnswer(beastKey, question, answer) {
   const beast = BEAST_DATA[beastKey];
   
-  // Check for insults first - immediate -2
+  // ── Gate 1: Insult check — immediate -2 ──────────────────────
   if (checkForInsult(answer)) {
     return {
       points: -2,
       feedback: `${beast.name} glares at you with pure contempt. That kind of disrespect will NOT be tolerated.`
     };
   }
-  
+
+  // ── Gate 2: Low-effort / minimum length check — automatic 0 ──
+  // Bypasses the AI entirely; uses beast-specific disdain feedback.
+  if (isLowEffort(answer)) {
+    const lines = LOW_EFFORT_RESPONSES[beastKey];
+    const feedback = lines[Math.floor(Math.random() * lines.length)];
+    return { points: 0, feedback };
+  }
+
   const systemPrompt = `${beast.persona}
 
 You are currently in a bonding session with your Jinchuriki. You asked them a question and they have responded. You must evaluate their answer and award points.
@@ -304,22 +416,24 @@ SCORING RULES:
 - 1 = Good answer that is relevant and thoughtful, even if brief
 - 0 = Lazy, off-topic, irrelevant, generic, one-word, or low-effort responses
 - -1 = Rude or dismissive answer
-- -2 = NEVER give this - insults are already filtered
+- -2 = NEVER give this — insults are already filtered before reaching you
 
 STRICT GUIDELINES:
 - Focus ONLY on QUALITY and RELEVANCE
-- A short but insightful answer deserves 2 points
+- A short but insightful answer can deserve 2 points
 - A long but irrelevant answer deserves 0 points
-- Generic answers like 'idk' or 'no' deserve 0 points
-- Do NOT reward effort - reward QUALITY
+- Do NOT reward effort — reward QUALITY
 - Only give 1 or 2 points if the answer is genuinely thoughtful and relevant
 - Most mediocre answers should get 0 points
+- CRITICAL: Answers like "nothing", "idk", "no", "yes", "maybe", "ok", or any single-word / two-word dismissal MUST receive 0 points — no exceptions, no leniency, no matter how you interpret them
+- CRITICAL: If the answer does not meaningfully engage with the question, award 0 points
+- CRITICAL: You are ${beast.name}. You have pride, standards, and a personality. A lazy answer is an insult to your existence — treat it as such in your feedback
 
 RESPONSE FORMAT:
 You MUST respond with valid JSON only. No other text.
 {
   "points": <integer from -2 to 2>,
-  "feedback": "<your in-character reaction to their answer, 2-4 sentences, speaking as ${beast.name}>"
+  "feedback": "<your in-character reaction to their answer, 2-4 sentences, speaking as ${beast.name}. If awarding 0 points, express genuine disappointment or disdain in your beast's unique voice — do NOT be neutral or polite about laziness>"
 }`;
 
   try {
