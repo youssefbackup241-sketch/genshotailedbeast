@@ -313,6 +313,22 @@ client.on('messageCreate', async (message) => {
 
   const content = message.content.toLowerCase();
 
+  // ─── !tbcmds command ───────────────────────────────────────
+  if (content === '!tbcmds') {
+    const embed = new EmbedBuilder()
+      .setTitle('Genshō Tailed Beast Commands')
+      .setDescription('Here are the commands you can use to interact with the Tailed Beasts:')
+      .setColor(0x0099FF)
+      .addFields(
+        { name: '!setup <beast> <userId>', value: '[Staff] Assign a Tailed Beast to a user.', inline: false },
+        { name: '!<beast>', value: 'Start a bonding session with a specific beast (e.g., !kurama, !shukaku).', inline: false },
+        { name: '<answer text>', value: 'Submit your answer to an active bonding question.', inline: false }
+      )
+      .setFooter({ text: 'More commands may be added in the future!' });
+    await message.reply({ embeds: [embed] });
+    return;
+  }
+
   // ─── !setup command ───────────────────────────────────────
   if (content.startsWith('!setup')) {
     if (!message.member.permissions.has('Administrator')) {
