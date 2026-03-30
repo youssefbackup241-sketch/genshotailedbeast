@@ -255,10 +255,45 @@ function createProgressBar(current, max) {
 }
 
 // ─────────────────────────────────────────────
+// Insult Filter
+// ─────────────────────────────────────────────
+function checkForInsult(answer) {
+  const insultPatterns = [
+    /fuck\s*(you|off|this)/i,
+    /go\s*to\s*hell/i,
+    /you\s*suck/i,
+    /you're\s*shit/i,
+    /you're\s*trash/i,
+    /shut\s*up/i,
+    /fuck\s*you/i,
+    /asshole/i,
+    /bastard/i,
+    /bitch/i,
+    /screw\s*you/i,
+    /die/i,
+    /kill\s*yourself/i,
+    /worthless/i,
+    /pathetic/i,
+    /disgusting/i
+  ];
+  
+  return insultPatterns.some(pattern => pattern.test(answer));
+}
+
+// ─────────────────────────────────────────────
 // OpenAI Evaluation
 // ─────────────────────────────────────────────
 async function evaluateAnswer(beastKey, question, answer) {
   const beast = BEAST_DATA[beastKey];
+  
+  // Check for insults first - immediate -2
+  if (checkForInsult(answer)) {
+    return {
+      points: -2,
+      feedback: `${beast.name} glares at you with pure contempt. That kind of disrespect will NOT be tolerated.`
+    };
+  }
+  
   const systemPrompt = `${beast.persona}
 
 You are currently in a bonding session with your Jinchuriki. You asked them a question and they have responded. You must evaluate their answer and award points.
@@ -267,16 +302,18 @@ SCORING RULES:
 - Award exactly ONE integer from this scale: -2, -1, 0, 1, or 2
 - 2 = Excellent answer that shows deep understanding, creativity, emotional depth, or directly addresses the question with genuine insight
 - 1 = Good answer that is relevant and thoughtful, even if brief
-- 0 = Lazy, off-topic, irrelevant, or one-word responses that don't engage with the question
-- -1 = Disrespectful or insulting answer
-- -2 = Extremely offensive or hateful answer
+- 0 = Lazy, off-topic, irrelevant, generic, one-word, or low-effort responses
+- -1 = Rude or dismissive answer
+- -2 = NEVER give this - insults are already filtered
 
-IMPORTANT GUIDELINES:
-- Focus on QUALITY and RELEVANCE, not length
+STRICT GUIDELINES:
+- Focus ONLY on QUALITY and RELEVANCE
 - A short but insightful answer deserves 2 points
 - A long but irrelevant answer deserves 0 points
-- Bad answers should get 0 points - don't reward them just because they tried
-- Only give positive points if the answer is genuinely good or thoughtful
+- Generic answers like 'idk' or 'no' deserve 0 points
+- Do NOT reward effort - reward QUALITY
+- Only give 1 or 2 points if the answer is genuinely thoughtful and relevant
+- Most mediocre answers should get 0 points
 
 RESPONSE FORMAT:
 You MUST respond with valid JSON only. No other text.
