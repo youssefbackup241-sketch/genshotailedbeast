@@ -271,7 +271,7 @@ function isLowEffort(answer) {
   const wordCount = trimmed.split(/\s+/).filter(w => w.length > 0).length;
   if (wordCount < 2) return true;
 
-  // Single-token dismissive answers that slip past the length gate
+  // Single-token dismissive answers or generic tropes that slip past the length gate
   const lowEffortPatterns = [
     /^(nothing\.?|nothin\.?)$/i,
     /^(idk|i don'?t know|dunno|duno)[.!?]*$/i,
@@ -282,7 +282,13 @@ function isLowEffort(answer) {
     /^(lol|lmao|haha|hehe|xd)[.!?]*$/i,
     /^(nothing much|not much|not really|not sure)[.!?]*$/i,
     /^(no idea|no clue|no answer)[.!?]*$/i,
-    /^(yes sir|yes ma'?am|yes please)[.!?]*$/i
+    /^(yes sir|yes ma'?am|yes please)[.!?]*$/i,
+    // Generic tropes
+    /^(i would use it for evil|i'd use it for evil|to do evil)[\.!?]*$/i,
+    /^(i would use it for good|i'd use it for good|to do good)[\.!?]*$/i,
+    /^(i don't know what to say|i have no idea)[\.!?]*$/i,
+    /^(whatever you want|whatever you say)[\.!?]*$/i,
+    /^(i would do anything|i'd do anything)[\.!?]*$/i
   ];
 
   return lowEffortPatterns.some(p => p.test(trimmed));
@@ -425,9 +431,10 @@ STRICT GUIDELINES:
 - Do NOT reward effort — reward QUALITY
 - Only give 1 or 2 points if the answer is genuinely thoughtful and relevant
 - Most mediocre answers should get 0 points
-- CRITICAL: Answers like "nothing", "idk", "no", "yes", "maybe", "ok", or any single-word / two-word dismissal MUST receive 0 points — no exceptions, no leniency, no matter how you interpret them
-- CRITICAL: If the answer does not meaningfully engage with the question, award 0 points
-- CRITICAL: You are ${beast.name}. You have pride, standards, and a personality. A lazy answer is an insult to your existence — treat it as such in your feedback
+	- CRITICAL: Answers like "nothing", "idk", "no", "yes", "maybe", "ok", or any single-word / two-word dismissal MUST receive 0 points — no exceptions.
+	- CRITICAL: Generic tropes like "I would use it for evil", "I would use it for good", or "I would help people" without any further explanation or detail MUST receive 0 points. They are lazy and show no real thought.
+	- CRITICAL: If the answer does not meaningfully engage with the specific details of your question, award 0 points.
+	- CRITICAL: You are ${beast.name}. You have pride, standards, and a personality. A lazy, generic, or cliché answer is an insult to your existence — treat it as such in your feedback. Do NOT be "nice" to a lazy Jinchuriki.
 
 RESPONSE FORMAT:
 You MUST respond with valid JSON only. No other text.
