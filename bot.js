@@ -417,8 +417,8 @@ async function evaluateAnswer(beastKey, question, answer) {
 You are currently in a bonding session with your Jinchuriki. You asked them a question and they have responded. You must evaluate their answer and award points.
 
 SCORING RULES:
-	- 2 = EXCEPTIONAL. Shows profound insight, deep lore knowledge, or extreme emotional vulnerability. The answer must be substantial and unique.
-	- 1 = PASSABLE. A solid, multi-sentence answer that actually answers the "why" and "how" with some level of thought.
+	- 2 = EXCEPTIONAL. Profound insight, deep lore knowledge, or extreme emotional vulnerability. The answer must be substantial, unique, and move you.
+	- 1 = PASSABLE. A solid, multi-sentence answer that actually answers the "why" and "how" with genuine thought.
 	- 0 = FAIL. Generic, short, cliché, or "safe" answers. This is the DEFAULT for most responses.
 	- -1 = DISMISSIVE. One-liners, "idk", "no", or ignoring the prompt's weight.
 	- -2 = NEVER give this — insults are already filtered.
@@ -458,7 +458,7 @@ You MUST respond with valid JSON only.
     // we override it to 0 if it doesn't meet a secondary length bar.
     // However, we only do this if the AI's reasoning doesn't explicitly mention "depth" or "insight".
     const reasoning = (result.reasoning || "").toLowerCase();
-    const hasDepth = reasoning.includes("depth") || reasoning.includes("insight") || reasoning.includes("profound") || reasoning.includes("lore");
+    const hasDepth = reasoning.includes("depth") || reasoning.includes("insight") || reasoning.includes("profound") || reasoning.includes("lore") || reasoning.includes("exceptional") || reasoning.includes("passable");
     
     if (result.points > 0 && answer.length < 20 && !hasDepth) {
       result.points = 0;
