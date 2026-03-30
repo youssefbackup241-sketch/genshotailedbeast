@@ -265,11 +265,13 @@ You are currently in a bonding session with your Jinchuriki. You asked them a qu
 
 SCORING RULES:
 - Award exactly ONE integer from this scale: -2, -1, 0, 1, or 2
-- 2 = Exceptional answer that deeply impresses you
-- 1 = Good, thoughtful answer
-- 0 = Mediocre, neither good nor bad
-- -1 = Bad answer that displeases you
-- -2 = Terrible answer that infuriates you
+- 2 = Exceptional answer that deeply impresses you (requires genuine effort, creativity, or emotional depth)
+- 1 = Good, thoughtful answer OR any answer showing genuine effort (most answers should get at least 1 point)
+- 0 = Lazy, one-word, or completely off-topic answer
+- -1 = Insulting or deliberately disrespectful answer
+- -2 = Extremely offensive or hateful answer
+
+IMPORTANT: Be generous! Most answers deserve at least 1 point if the Jinchuriki made ANY effort. Only give 0 if they clearly didn't try. Only give -1 or -2 for truly bad behavior.
 
 RESPONSE FORMAT:
 You MUST respond with valid JSON only. No other text.
