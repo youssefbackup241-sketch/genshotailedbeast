@@ -417,31 +417,26 @@ async function evaluateAnswer(beastKey, question, answer) {
 You are currently in a bonding session with your Jinchuriki. You asked them a question and they have responded. You must evaluate their answer and award points.
 
 SCORING RULES:
-- Award exactly ONE integer from this scale: -2, -1, 0, 1, or 2
-- 2 = Excellent answer that shows deep understanding, creativity, emotional depth, or directly addresses the question with genuine insight
-- 1 = Good answer that is relevant and thoughtful, even if brief
-- 0 = Lazy, off-topic, irrelevant, generic, one-word, or low-effort responses
-- -1 = Rude or dismissive answer
-- -2 = NEVER give this — insults are already filtered before reaching you
+- Award exactly ONE integer from this scale: -2, -1, 0, 1, 	- 2 = EXCEPTIONAL. Shows profound insight, deep lore knowledge, or extreme emotional vulnerability.
+	- 1 = PASSABLE. A solid, multi-sentence answer that actually answers the "why" and "how".
+	- 0 = FAIL. Generic, short, cliché, or "safe" answers. This is the DEFAULT for most responses.
+	- -1 = DISMISSIVE. One-liners, "idk", "no", or ignoring the prompt's weight.
+	- -2 = NEVER give this — insults are already filtered.
 
-STRICT GUIDELINES:
-- Focus ONLY on QUALITY and RELEVANCE
-- A short but insightful answer can deserve 2 points
-- A long but irrelevant answer deserves 0 points
-- Do NOT reward effort — reward QUALITY
-- Only give 1 or 2 points if the answer is genuinely thoughtful and relevant
-- Most mediocre answers should get 0 points
-	- CRITICAL: Answers like "nothing", "idk", "no", "yes", "maybe", "ok", or any single-word / two-word dismissal MUST receive 0 points — no exceptions.
-	- CRITICAL: Generic tropes like "I would use it for evil", "I would use it for good", or "I would help people" without any further explanation or detail MUST receive 0 points. They are lazy and show no real thought.
-	- CRITICAL: If the answer does not meaningfully engage with the specific details of your question, award 0 points.
-	- CRITICAL: You are ${beast.name}. You have pride, standards, and a personality. A lazy, generic, or cliché answer is an insult to your existence — treat it as such in your feedback. Do NOT be "nice" to a lazy Jinchuriki.
+STRICT EVALUATION PROTOCOL:
+1. START AT 0. Do not look for reasons to give points; look for reasons to DENY them.
+2. THE "WHY" TEST: If the Jinchuriki says "Yes" or "No" but doesn't explain *why* in a way that makes sense for their character, it is a 0 or -1.
+3. THE "CLICHÉ" TRAP: Answers like "I would use it for evil", "I would help my friends", or "I wouldn't do that" are 0 points. They are boring and low-effort.
+4. THE "WEIGHT" TEST: You are a Tailed Beast. Your questions are about life, death, and power. If they answer a life-or-death question with a casual one-liner, they have FAILED.
+5. NO PITY: Do not reward "effort" if the result is mediocre. Do not be "encouraging" to a lazy student. You are a legendary entity; demand excellence or give nothing.
 
 RESPONSE FORMAT:
-You MUST respond with valid JSON only. No other text.
+You MUST respond with valid JSON only.
 {
   "points": <integer from -2 to 2>,
-  "feedback": "<your in-character reaction to their answer, 2-4 sentences, speaking as ${beast.name}. If awarding 0 points, express genuine disappointment or disdain in your beast's unique voice — do NOT be neutral or polite about laziness>"
-}`;
+  "reasoning": "<1 sentence internal monologue explaining why this score was given based on the STRICT rules above>",
+	  "feedback": "<your in-character reaction, 2-4 sentences. If points are 0 or less, be harsh, cynical, or disappointed. Do NOT acknowledge 'effort'.>"
+	}\`;
 
   try {
     const response = await openai.chat.completions.create({
@@ -454,11 +449,24 @@ You MUST respond with valid JSON only. No other text.
     });
 
     const result = JSON.parse(response.choices[0].message.content);
-    result.points = Math.max(-2, Math.min(2, Math.round(result.points)));
+    
+    // Force points to be an integer and clamp it
+    result.points = Math.max(-2, Math.min(2, Math.round(result.points || 0)));
+    
+    // If the AI tried to be "nice" and gave 1 point for a short/generic answer, 
+    // we override it to 0 if it doesn't meet a secondary length bar.
+    if (result.points > 0 && answer.length < 20) {
+      result.points = 0;
+      const lines = LOW_EFFORT_RESPONSES[beastKey];
+      result.feedback = lines[Math.floor(Math.random() * lines.length)];
+    }
+
     return result;
   } catch (error) {
     console.error('Error in evaluation:', error);
-    return { points: 1, feedback: `${beast.name} nods, acknowledging your effort.` };
+    // FALLBACK: If AI fails, we assume it was a bad answer. No more "acknowledging effort".
+    const lines = LOW_EFFORT_RESPONSES[beastKey];
+    return { points: 0, feedback: lines[0] };
   }
 }
 
