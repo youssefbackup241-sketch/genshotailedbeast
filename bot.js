@@ -214,8 +214,9 @@ client.on('messageCreate', async (message) => {
   }
 
   // ─── Beast commands (!kurama, etc.) ────────────────────────
-  const cmd = content.replace('!', '').split(/\s+/)[0];
-  if (BEAST_DATA[cmd]) {
+  if (content.startsWith('!')) {
+    const cmd = content.slice(1).split(/\s+/)[0];
+    if (BEAST_DATA[cmd]) {
     const beastKey = cmd;
     const beast = BEAST_DATA[beastKey];
     if (message.channel.id !== beast.channelId) return message.reply(`❌ Use ${beast.name}'s chamber!`);
@@ -247,7 +248,8 @@ client.on('messageCreate', async (message) => {
       .setDescription(`**${beast.name} asks:**\n\n"${questionObj.question}"\n\n*Reply with **Yes** or **No***`)
       .setColor(beast.color)
       .setFooter({ text: `Bond: ${userData.bondPoints}/${KCM_THRESHOLD} | Limit: 1/day` });
-    return message.reply({ embeds: [embed] });
+      return message.reply({ embeds: [embed] });
+    }
   }
 
   // ─── Answer handler ───────────────────────────────────────
