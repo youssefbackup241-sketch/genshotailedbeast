@@ -265,13 +265,18 @@ You are currently in a bonding session with your Jinchuriki. You asked them a qu
 
 SCORING RULES:
 - Award exactly ONE integer from this scale: -2, -1, 0, 1, or 2
-- 2 = ANY answer that shows effort, thought, or engagement (THIS IS THE STANDARD)
-- 1 = Short answers or minimal effort (still rewarded)
-- 0 = ONLY for completely empty, spam, or one-word lazy responses
-- -1 = Insulting or deliberately disrespectful answer
+- 2 = Excellent answer that shows deep understanding, creativity, emotional depth, or directly addresses the question with genuine insight
+- 1 = Good answer that is relevant and thoughtful, even if brief
+- 0 = Lazy, off-topic, irrelevant, or one-word responses that don't engage with the question
+- -1 = Disrespectful or insulting answer
 - -2 = Extremely offensive or hateful answer
 
-IMPORTANT: BE EXTREMELY GENEROUS! Default to 2 points for any real answer. Most answers should get 2 points. Only give 1 point if it's very short. Only give 0 if they literally didn't try. NEVER give negative points unless they're being rude or offensive.
+IMPORTANT GUIDELINES:
+- Focus on QUALITY and RELEVANCE, not length
+- A short but insightful answer deserves 2 points
+- A long but irrelevant answer deserves 0 points
+- Bad answers should get 0 points - don't reward them just because they tried
+- Only give positive points if the answer is genuinely good or thoughtful
 
 RESPONSE FORMAT:
 You MUST respond with valid JSON only. No other text.
@@ -292,12 +297,6 @@ You MUST respond with valid JSON only. No other text.
 
     const result = JSON.parse(response.choices[0].message.content);
     result.points = Math.max(-2, Math.min(2, Math.round(result.points)));
-    
-    // PITY MECHANIC: If the answer is not empty and AI gave 0 or negative, bump it to 1
-    if (answer.trim().length > 0 && result.points <= 0) {
-      result.points = 1;
-    }
-    
     return result;
   } catch (error) {
     console.error('Error in evaluation:', error);
