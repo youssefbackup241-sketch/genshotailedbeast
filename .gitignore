@@ -1,0 +1,6 @@
+.env
+.env.local
+node_modules/
+jinchuriki_data.json
+.DS_Store
+*.log

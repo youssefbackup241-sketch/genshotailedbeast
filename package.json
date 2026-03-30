@@ -1,0 +1,19 @@
+{
+  "name": "gensho-discord-bot-js",
+  "version": "1.0.0",
+  "description": "Genshō Tailed Beast Discord Bot - A Discord bot mirroring the Genshō Tailed Beast web project with OpenAI integration",
+  "main": "bot.js",
+  "scripts": {
+    "start": "node bot.js",
+    "dev": "node bot.js"
+  },
+  "keywords": ["discord", "bot", "naruto", "tailed-beasts", "openai"],
+  "author": "Manus AI",
+  "license": "MIT",
+  "packageManager": "pnpm@10.33.0",
+  "dependencies": {
+    "discord.js": "^14.25.1",
+    "dotenv": "^17.3.1",
+    "openai": "^6.33.0"
+  }
+}
