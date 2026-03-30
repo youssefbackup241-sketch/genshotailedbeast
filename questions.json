@@ -1,5 +1,5 @@
 {
-  "matatabi": [
+  "matatabis": [
     {
       "question": "Do you believe true strength lies in grace rather than brute force?",
       "answer": "Yes"
@@ -1357,7 +1357,7 @@
       "answer": "No"
     }
   ],
-  "chomei": [
+  "chomeis": [
     {
       "question": "Do you accept the weight of loneliness as part of our bond?",
       "answer": "Yes"
@@ -1555,7 +1555,7 @@
       "answer": "Yes"
     }
   ],
-  "saiken": [
+  "saikens": [
     {
       "question": "Do you accept that my power is a part of you, not just a tool to wield?",
       "answer": "Yes"
