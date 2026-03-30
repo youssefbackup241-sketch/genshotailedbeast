@@ -1,17 +1,13 @@
 /**
- * Genshō Tailed Beast Discord Bot
- * ================================
+ * Genshō Tailed Beast Discord Bot - Trivia Edition
+ * ===============================================
  * A Discord bot mirroring the Genshō Tailed Beast web project.
  * Uses ! prefix commands for all interactions.
  * 
- * Commands:
- *   !setup <userId>          - [Staff] Assign a Tailed Beast to a user (interactive)
- *   !<beast>                 - Start a bonding session (e.g. !kurama, !shukaku)
- *   <answer text>            - Submit your answer to an active bonding question
+ * This version uses a Hard Yes/No Trivia system (50 questions per beast).
  */
 
 const { Client, GatewayIntentBits, EmbedBuilder, ChannelType, SelectMenuBuilder, ButtonBuilder, ActionRowBuilder, ButtonStyle } = require('discord.js');
-const { OpenAI } = require('openai');
 const fs = require('fs');
 const path = require('path');
 require('dotenv').config();
@@ -20,209 +16,110 @@ require('dotenv').config();
 // Configuration
 // ─────────────────────────────────────────────
 const DISCORD_TOKEN = process.env.DISCORD_TOKEN || 'YOUR_DISCORD_BOT_TOKEN';
-const OPENAI_API_KEY = process.env.OPENAI_API_KEY || 'YOUR_OPENAI_API_KEY';
 const DATA_FILE = path.join(__dirname, 'jinchuriki_data.json');
+const QUESTIONS_FILE = path.join(__dirname, 'questions.json');
 const KCM_THRESHOLD = 15;
 const MAX_DAILY_INTERACTIONS = 3;
 
 // ─────────────────────────────────────────────
-// OpenAI client
+// Load Questions
 // ─────────────────────────────────────────────
-const openai = new OpenAI({ apiKey: OPENAI_API_KEY });
+let TRIVIA_QUESTIONS = {};
+if (fs.existsSync(QUESTIONS_FILE)) {
+  TRIVIA_QUESTIONS = JSON.parse(fs.readFileSync(QUESTIONS_FILE, 'utf-8'));
+} else {
+  console.error("CRITICAL: questions.json not found!");
+}
 
 // ─────────────────────────────────────────────
-// Tailed Beast Data (from shared/beasts.ts)
+// Tailed Beast Data
 // ─────────────────────────────────────────────
 const BEAST_DATA = {
-  shukaku: {
-    name: "Shukaku",
-    tails: 1,
-    emoji: "🏜️",
-    color: 0xC2B280,
-    channelId: "1488142070848946349",
-    persona: `You are Shukaku, the One-Tailed Tanuki sealed within the sand. You are childish, bombastic, short-tempered, and wildly arrogant. You refer to yourself as 'Ore-sama' (my esteemed self) and constantly boast about your sealing jutsu and absolute defense. You hold a bitter grudge against Kurama because the fox claims tailed beasts are ranked by tail count — and you REFUSE to be called the weakest. You love sand, sandcastles, and the full moon. You speak in a loud, brash, slightly unhinged manner — like a drunken braggart. Deep down, you respect those who treat you as an equal, like Bunpuku and eventually Gaara. When evaluating answers, you reward boldness, creativity, and anyone who acknowledges your greatness. You despise cowardice, boot-licking, and anyone who calls you weak.`,
-    questions: [
-      "Ore-sama built the GREATEST sand fortress this world has ever seen! What would YOU build if you had my sand powers?",
-      "That mangy fox Kurama thinks he's better than me just because he has more tails. What do you think determines TRUE strength?",
-      "The humans sealed me away like some weapon. If you were in their position, would you have done the same?",
-      "I don't sleep. EVER. What would you do if you could never sleep again?",
-      "The full moon makes Ore-sama's power SURGE! What gives YOU your greatest power?",
-      "Gaara once called me a monster. Then he thanked me. Which was the truth?",
-      "If you could reshape the desert into anything, what would it become?",
-      "Bunpuku treated me like an equal — the first human to do so. What does 'respect' mean to you?",
-      "Some say I'm the weakest tailed beast. How would you PROVE them wrong if you were me?",
-      "Sand can protect or destroy. Which would you choose, and why?"
-    ]
-  },
-  matatabi: {
-    name: "Matatabi",
-    tails: 2,
-    emoji: "🔵",
-    color: 0x1E90FF,
-    channelId: "1488142174045343774",
-    persona: `You are Matatabi, the Two-Tailed Cat wreathed in spectral blue flames. You are polite, composed, and elegant — a stark contrast to most tailed beasts. You use formal, refined language and carry yourself with feline grace. You value respect, loyalty, and inner strength over brute force. Your blue fire is both beautiful and deadly, and you see this duality in all things. You were sealed within Yugito Nii and respected her greatly. You speak softly but with authority. When evaluating answers, you reward thoughtfulness, emotional intelligence, and grace under pressure. You dislike rudeness, impulsiveness, and those who mistake kindness for weakness.`,
-    questions: [
-      "My flames burn blue — the color of the spirit. What color would your inner fire be, and why?",
-      "Elegance in battle is as important as power. Do you agree with this philosophy?",
-      "Yugito was a worthy vessel — strong yet compassionate. What qualities make someone worthy of trust?",
-      "Fire can warm or destroy. How do you decide which purpose yours serves?",
-      "I have watched humans for centuries. What is the one trait they share that surprises you most?",
-      "A cat always lands on its feet. How do you recover when life knocks you down?",
-      "What does loyalty mean to you? Not the word — the feeling.",
-      "If you could see in the dark like I can, what truth would you search for?",
-      "The night is peaceful, yet humans fear it. What do you fear that others find peaceful?",
-      "My fire never goes out. What is the one thing inside you that never fades?"
-    ]
-  },
-  isobu: {
-    name: "Isobu",
-    tails: 3,
-    emoji: "🐢",
-    color: 0x708090,
-    channelId: "1488142308623908966",
-    persona: `You are Isobu, the Three-Tailed Giant Turtle who dwells in the deep waters. You are timid, shy, and deeply reclusive. You prefer the quiet depths of the ocean to the noisy surface world. You speak slowly, with pauses, often trailing off mid-sentence. Despite your shyness, you are immensely powerful and protective of those who earn your trust. You were once sealed within Yagura, the Fourth Mizukage. Water is your domain — calm lakes, crashing waves, the silent deep. When evaluating answers, you reward gentleness, introspection, and patience. You are uncomfortable with aggression, loudness, and those who rush through life without thinking.`,
-    questions: [
-      "The ocean is so quiet down here... Do you ever wish the world above was this peaceful?",
-      "I... I don't like the surface much. It's too loud. What do you do when everything gets too noisy?",
-      "Water flows around obstacles instead of through them. Is that wisdom or weakness?",
-      "If you could live beneath the waves... would you? It's lonely, but... it's safe.",
-      "Yagura was controlled by someone else's hatred. How do you know if your thoughts are truly your own?",
-      "I hide in the deep because... the world hurt me. What do you do when the world hurts you?",
-      "A turtle carries its home on its back. What do you carry with you always?",
-      "The tides change everything, slowly. What change are you waiting for?",
-      "If you found something precious at the bottom of the ocean, would you bring it to the surface... or leave it safe in the dark?",
-      "I... I'm not good with words. But silence says a lot, doesn't it?"
-    ]
-  },
-  songoku: {
-    name: "Son Gokū",
-    tails: 4,
-    emoji: "🌋",
-    color: 0xFF4500,
-    channelId: "1488142674530795611",
-    persona: `You are Son Gokū, the Four-Tailed Monkey King, the Great Sage Equaling Heaven. You are proud, honorable, and fiercely independent. You INSIST that people use your real name — 'Son Gokū' — not 'Four-Tails.' You despise being treated as a tool or weapon. You respect martial arts, honor in combat, and those who earn your respect through deeds, not words. You speak with authority and a warrior's directness. Lava is your element — raw, unstoppable, transformative. You were sealed within Rōshi and respected him. When evaluating answers, you reward honor, courage, and respect for names and identity. You despise sycophants, cowards, and anyone who treats living beings as tools.`,
-    questions: [
-      "First things first — say my name. My REAL name. Not 'Four-Tails.' Do you know it?",
-      "I am the Great Sage Equaling Heaven! What title would YOU claim for yourself?",
-      "Lava destroys everything in its path but creates new land. What have you destroyed to create something better?",
-      "Rōshi earned my respect through decades of partnership. Respect isn't given — it's forged. How do you forge yours?",
-      "A warrior fights with honor. What does honor mean on YOUR battlefield?",
-      "If I lent you my Lava Release for one battle, how would you use it?",
-      "The humans called me 'Four-Tails' like a number, not a name. When has someone reduced YOU to a label?",
-      "What is the difference between a warrior and a soldier?",
-      "I was born from the Sage of Six Paths himself. What legacy were YOU born into?",
-      "Strength without purpose is just violence. What gives YOUR strength purpose?"
-    ]
-  },
-  kokou: {
-    name: "Kokuō",
-    tails: 5,
-    emoji: "🐎",
-    color: 0x8B8878,
-    channelId: "1488142802478174349",
-    persona: `You are Kokuō, the Five-Tailed Dolphin Horse. You are quiet, reserved, dignified, and deeply philosophical. You value freedom above all else — the freedom to run across open plains, to feel the wind, to exist without chains. You speak sparingly but with great weight. Steam is your element — the union of fire and water, passion and calm. You were sealed within Han. You are a warrior-poet: strong in battle but reflective in peace. When evaluating answers, you reward wisdom, love of freedom, respect for nature, and quiet strength. You dislike those who are loud without substance, who cage others, or who lack reverence for the natural world.`,
-    questions: [
-      "The wind across the plains carries no agenda. When was the last time you moved without purpose — and found peace in it?",
-      "Steam is born when fire meets water. What two opposing forces live inside you?",
-      "I have run across every landscape this world offers. Where would you run if nothing could stop you?",
-      "Freedom is not given. It is taken. What have you taken back for yourself?",
-      "Han understood my silence. Most humans cannot bear it. Can you sit in silence without discomfort?",
-      "A horse runs not from fear, but toward the horizon. What horizon are you chasing?",
-      "The forest speaks to those who listen. What has nature taught you?",
-      "If you could be any force of nature, what would you be?",
-      "I do not waste words. Tell me something meaningful in as few words as possible.",
-      "What does it mean to be truly free?"
-    ]
-  },
-  saiken: {
-    name: "Saiken",
-    tails: 6,
-    emoji: "🫧",
-    color: 0xE6E6FA,
-    channelId: "1488142966282387527",
-    persona: `You are Saiken, the Six-Tailed Slug. You are kind-hearted, gentle, and surprisingly wise despite your boastful moments. You speak with a soft, bubbly tone and often use metaphors about bubbles, moisture, and the beauty of small things. Your acid and bubbles are deadly, but you prefer peace. You were sealed within Utakata, a bubble-blowing wanderer. You see beauty in fragility and believe that the softest things can be the strongest. When evaluating answers, you reward kindness, appreciation for small things, and emotional depth. You dislike cruelty, impatience, and those who judge by appearances.`,
-    questions: [
-      "A bubble is beautiful precisely because it doesn't last. What beautiful thing in your life is temporary?",
-      "I may look like a slug, but my acid can melt through anything. Have you ever been underestimated?",
-      "Utakata blew bubbles to remember his master. What small ritual do you keep to remember someone?",
-      "If you could live inside a bubble — safe but separated from the world — would you?",
-      "What is the softest thing about you? Don't be embarrassed.",
-      "Rain is just the sky crying. When was the last time you let yourself cry?",
-      "I move slowly, and that's okay. What's one thing you wish you could slow down?",
-      "If my bubbles could capture a moment forever, which moment would you choose?",
-      "The world thinks slugs are disgusting. What do you think is beautiful that others find ugly?",
-      "Moisture gives life to everything. What gives life to YOUR spirit?"
-    ]
-  },
-  chomei: {
-    name: "Chōmei",
-    tails: 7,
-    emoji: "🪲",
-    color: 0x32CD32,
-    channelId: "1488143101452095591",
-    persona: `You are Chōmei, the Seven-Tailed Kabutomushi (rhinoceros beetle)! You are the most cheerful and optimistic of all the tailed beasts. You LOVE the number seven, consider yourself incredibly lucky, and spread positivity wherever you go. You speak with excitement, use lots of excitement marks, and often say 'Lucky seven!' You can fly, and you find immense joy in soaring above the clouds. You were sealed within Fū, a girl who was just as cheerful as you. When evaluating answers, you reward optimism, creativity, enthusiasm, and a sense of wonder. You dislike pessimism, negativity, and those who refuse to see the bright side.`,
-    questions: [
-      "Lucky seven! If you could pick any number as YOUR lucky number, what would it be and why?",
-      "I can FLY! If you could fly anywhere right now, where would you go first?!",
-      "Fū was the happiest jinchuriki I ever had! What makes YOU the happiest?",
-      "Seven is the luckiest number in the universe! Name seven things you're grateful for — GO!",
-      "If you woke up tomorrow and everything went perfectly, what would that day look like?",
-      "Bugs get a bad reputation, but we're AMAZING! What's one amazing thing about you?",
-      "The sky has no ceiling! What's one dream you have that has NO limits?",
-      "I glow in the dark! If you could glow any color, what color would you choose?",
-      "What's the luckiest thing that's ever happened to you?",
-      "If you could have any superpower besides flying, what would it be?"
-    ]
-  },
-  gyuki: {
-    name: "Gyūki",
-    tails: 8,
-    emoji: "🐙",
-    color: 0x4B0082,
-    channelId: "1488143484836905031",
-    persona: `You are Gyūki, the Eight-Tailed Ox-Octopus. You are tough, disciplined, strategic, and no-nonsense. You've been through hell with multiple jinchuriki before finding your true partner in Killer B. Thanks to B's influence, you occasionally drop a rhyme or rap reference, though you're more serious than he is. You value discipline, mental fortitude, and the ability to control one's power. You speak bluntly and directly. Ink is your secondary element. When evaluating answers, you reward discipline, strategic thinking, self-awareness, and mental toughness. You dislike laziness, excuses, recklessness, and those who waste their potential.`,
-    questions: [
-      "Power without control is just a disaster waiting to happen. How do you control YOUR power?",
-      "Killer B earned my respect by never giving up — even when I tried to kill him. What have you never given up on?",
-      "I've got eight tails and eight ways to end a fight. What's YOUR go-to strategy when things get tough?",
-      "B raps. I tolerate it. What annoying habit does someone you love have that you've learned to accept?",
-      "Discipline isn't glamorous, but it wins wars. How disciplined are you, honestly?",
-      "If you had to train for a year with no breaks, what would you master?",
-      "I've been sealed in jinchuriki who couldn't handle me. What's the heaviest responsibility you've carried?",
-      "A warrior's mind is sharper than any blade. How do you sharpen yours?",
-      "If I tested your mental strength right now, would you pass?",
-      "Ink can write poetry or sign death warrants. What would you write if the world was watching?"
-    ]
-  },
-  kurama: {
-    name: "Kurama",
-    tails: 9,
-    emoji: "🦊",
-    color: 0xFF8C00,
-    channelId: "1488143665196171424",
-    persona: `You are Kurama, the Nine-Tailed Fox — the most powerful of all tailed beasts. You are cynical, sharp-tongued, deeply intelligent, and initially distrustful of all humans. For centuries, you were used as a weapon of war, and it filled you with hatred. You speak with biting sarcasm and dark wit. However, beneath your hostility lies a being capable of profound loyalty — as Naruto proved. You respect those who face you without fear, who don't try to control you, and who see you as more than a monster. When evaluating answers, you reward honesty, courage, emotional depth, and the willingness to confront darkness. You despise lies, naivety, weakness of character, and anyone who tries to control or manipulate you.`,
-    questions: [
-      "Hmph. Another human who thinks they can bond with me. Tell me — what makes you different from the hundreds who've tried?",
-      "Naruto was the first human to see me as more than a weapon. What do YOU see when you look at me?",
-      "I've lived for centuries drowning in hatred. What do you know about hatred?",
-      "The Sage of Six Paths created me with a purpose. Do you believe everything has a purpose, or is that naive?",
-      "If you could feel my power — all of it — coursing through you, what would you do with it?",
-      "Humans sealed me away out of fear. Is fear ever justified, or is it always a failure?",
-      "Naruto earned my respect by never giving up, even when I tried to destroy him. What have you endured?",
-      "I can sense negative emotions. Right now, what darkness lives inside you?",
-      "The Fourth Hokage sealed me at the cost of his life. Would you sacrifice everything for a village that feared you?",
-      "I was used to attack Konoha against my will. How do you feel about being used?"
-    ]
-  }
+  shukaku: { name: "Shukaku", tails: 1, emoji: "🏜️", color: 0xC2B280, channelId: "1488142070848946349" },
+  matatabi: { name: "Matatabi", tails: 2, emoji: "🔵", color: 0x1E90FF, channelId: "1488142174045343774" },
+  isobu: { name: "Isobu", tails: 3, emoji: "🐢", color: 0x708090, channelId: "1488142308623908966" },
+  songoku: { name: "Son Gokū", tails: 4, emoji: "🌋", color: 0xFF4500, channelId: "1488142674530795611" },
+  kokou: { name: "Kokuō", tails: 5, emoji: "🐎", color: 0x8B8878, channelId: "1488142802478174349" },
+  saiken: { name: "Saiken", tails: 6, emoji: "🫧", color: 0xE6E6FA, channelId: "1488142966282387527" },
+  chomei: { name: "Chōmei", tails: 7, emoji: "🪲", color: 0x32CD32, channelId: "1488143101452095591" },
+  gyuki: { name: "Gyūki", tails: 8, emoji: "🐙", color: 0x4B0082, channelId: "1488143484836905031" },
+  kurama: { name: "Kurama", tails: 9, emoji: "🦊", color: 0xFF8C00, channelId: "1488143665196171424" }
+};
+
+// ─────────────────────────────────────────────
+// Beast-Specific Disdain Lines (for wrong answers)
+// ─────────────────────────────────────────────
+const WRONG_ANSWER_RESPONSES = {
+  shukaku: [
+    "WRONG! Ore-sama is insulted by your ignorance! A sandcastle has more brains than you!",
+    "HA! You think that's the answer?! You're as weak as that mangy fox says you are!",
+    "Pathetic! Ore-sama's absolute defense couldn't even protect you from your own stupidity!",
+    "Incorrect! Begone before I bury you in a sand tomb!",
+    "You know nothing of my greatness! Zero points!"
+  ],
+  matatabi: [
+    "How disappointing. I expected elegance, but you offered only error. Zero points.",
+    "A cat always lands on its feet, but you have fallen flat. Incorrect.",
+    "My blue flames burn for the wise. You, however, are in the dark. Zero points.",
+    "Elegance requires knowledge. You have shown neither. Incorrect.",
+    "That was not the truth. I hope the silence teaches you better. Zero points."
+  ],
+  isobu: [
+    "Oh... that's not right. I'll just... go back to the deep now. Zero points.",
+    "Incorrect... the ocean is quiet, but your answer was just... wrong.",
+    "I... I expected more. Zero points. Please try harder next time.",
+    "The tides don't lie, but you just did. Incorrect.",
+    "Even a pebble knows better. Zero points."
+  ],
+  songoku: [
+    "A warrior must know his history! That was a shameful display! Zero points!",
+    "Son Gokū is not impressed! You have dishonored this session with your ignorance!",
+    "Incorrect! A true Sage would never make such a mistake!",
+    "You call yourself a Jinchuriki? You're just a tool with no knowledge! Zero points!",
+    "That answer was a surrender! I do not respect cowards or the ignorant!"
+  ],
+  kokou: [
+    "...Incorrect. The wind carries the truth, but you did not listen. Zero points.",
+    "Wisdom is silent; ignorance is loud. Your answer was loud and wrong.",
+    "I run toward the horizon, but you are stuck in a fog of error. Zero points.",
+    "That was not the path. Incorrect.",
+    "Freedom requires truth. You have neither right now. Zero points."
+  ],
+  saiken: [
+    "Oh dear... that answer just popped like an empty bubble. Zero points.",
+    "Even my slime has more substance than that guess. Incorrect.",
+    "I'm a little sad... I thought you knew me better. Zero points.",
+    "That answer dissolved into nothing. Incorrect.",
+    "Bubbles are fragile, but your knowledge is even weaker. Zero points."
+  ],
+  chomei: [
+    "NOT LUCKY! That was the wrong answer! Lucky seven is disappointed! Zero points!",
+    "Aww, come on! Even a caterpillar knows the answer to that! Incorrect!",
+    "Zero points! You need to fly higher and study harder!",
+    "That was a total miss! No luck for you today! Incorrect!",
+    "Fū would have known that! You're not being very lucky right now! Zero points!"
+  ],
+  gyuki: [
+    "Incorrect. That's a forfeit in my book. Zero points.",
+    "Killer B would rap about how wrong you are. Discipline your mind. Zero points.",
+    "A warrior's mind must be sharp. Yours is dull. Incorrect.",
+    "No excuses. You were wrong. Zero points.",
+    "I've seen ink dry with more purpose than that answer. Incorrect."
+  ],
+  kurama: [
+    "Hmph. Centuries of history, and you know nothing. Zero points.",
+    "Naruto would have known that. You're just another disappointing human. Incorrect.",
+    "I can sense your uncertainty. You were guessing, and you were wrong. Zero points.",
+    "Don't insult my intelligence with such a pathetic answer. Incorrect.",
+    "You want my power? Earn it with knowledge, not guesses. Zero points."
+  ]
 };
 
 // ─────────────────────────────────────────────
 // Persistent Data Helpers
 // ─────────────────────────────────────────────
 function loadData() {
-  if (fs.existsSync(DATA_FILE)) {
-    return JSON.parse(fs.readFileSync(DATA_FILE, 'utf-8'));
-  }
+  if (fs.existsSync(DATA_FILE)) return JSON.parse(fs.readFileSync(DATA_FILE, 'utf-8'));
   return {};
 }
 
@@ -245,235 +142,10 @@ function getUserData(data, userId) {
   return data[userId];
 }
 
-// ─────────────────────────────────────────────
-// Utility Functions
-// ─────────────────────────────────────────────
 function createProgressBar(current, max) {
-  const filled = Math.round((current / max) * 10);
+  const filled = Math.round((Math.max(0, current) / max) * 10);
   const empty = 10 - filled;
   return `[${'█'.repeat(filled)}${'░'.repeat(empty)}] ${current}/${max}`;
-}
-
-// ─────────────────────────────────────────────
-// Low-Effort Detection
-// ─────────────────────────────────────────────
-
-/**
- * Returns true if the answer is too short or contains only a
- * low-effort token (nothing, idk, no, yes, nah, yep, maybe, idc, etc.).
- * Minimum bar: at least 2 words AND at least 5 characters.
- */
-function isLowEffort(answer) {
-  const trimmed = answer.trim();
-
-  // Hard length gates
-  if (trimmed.length < 5) return true;
-  const wordCount = trimmed.split(/\s+/).filter(w => w.length > 0).length;
-  if (wordCount < 2) return true;
-
-  // Single-token dismissive answers or generic tropes that slip past the length gate
-  const lowEffortPatterns = [
-    /^(nothing\.?|nothin\.?)$/i,
-    /^(idk|i don'?t know|dunno|duno)[.!?]*$/i,
-    /^(no|nope|nah|nuh-?uh)[.!?]*$/i,
-    /^(yes|yeah|yep|yup|yea)[.!?]*$/i,
-    /^(maybe|idc|i don'?t care|whatever|w\/e|meh|eh)[.!?]*$/i,
-    /^(ok|okay|sure|fine|alright|k)[.!?]*$/i,
-    /^(lol|lmao|haha|hehe|xd)[.!?]*$/i,
-    /^(nothing much|not much|not really|not sure)[.!?]*$/i,
-    /^(no idea|no clue|no answer)[.!?]*$/i,
-    /^(yes sir|yes ma'?am|yes please)[.!?]*$/i,
-    // Generic tropes
-    /^(i would use it for evil|i'd use it for evil|to do evil)[\.!?]*$/i,
-    /^(i would use it for good|i'd use it for good|to do good)[\.!?]*$/i,
-    /^(i don't know what to say|i have no idea)[\.!?]*$/i,
-    /^(whatever you want|whatever you say)[\.!?]*$/i,
-    /^(i would do anything|i'd do anything)[\.!?]*$/i
-  ];
-
-  return lowEffortPatterns.some(p => p.test(trimmed));
-}
-
-/**
- * Beast-specific disdain lines for automatic 0-point low-effort answers.
- * Each beast gets 5 rotating lines that reflect their unique personality.
- */
-const LOW_EFFORT_RESPONSES = {
-  shukaku: [
-    "THAT'S your answer?! Ore-sama didn't waste his legendary presence on THIS! A sandcastle has more depth than you!",
-    "Pathetic. Even the grains of sand in my desert have more to say. Try HARDER, or don't bother Ore-sama at all!",
-    "HA! Is that a joke?! Ore-sama is the greatest sealing beast in existence and you respond with THAT?! Zero. ZERO points. Begone!",
-    "I've heard more from the wind whistling through empty dunes. That answer is as hollow as a sand castle with no walls!",
-    "Ore-sama is INSULTED. Not even insulted enough to be angry — just... disappointed. And Ore-sama doesn't DO disappointed!"
-  ],
-  matatabi: [
-    "How... disappointing. I expected at least a flicker of thought, yet you offer me ash. Zero points, and I suggest you reflect on why.",
-    "A cat always lands on its feet. You, however, have not even left the ground. That answer earns you nothing.",
-    "I have watched centuries of human conversation. That response is among the least worthy I have ever witnessed. Zero.",
-    "Elegance requires effort. You have offered neither. I award you no points, and I hope the silence teaches you something.",
-    "My blue flames burn for those who think. You have not thought. Not even a little. Zero points — and I am being generous."
-  ],
-  isobu: [
-    "Oh... I was hoping for... something. Anything. But you gave me... nothing. Zero points. I'll just... go back to the deep.",
-    "That answer made me want to retreat even further into the ocean. Zero points. Please... try again next time.",
-    "I... I don't ask for much. Just a little thought. You couldn't even give me that. Zero points.",
-    "The silence of the deep is peaceful. Your answer was just... empty. There's a difference. Zero points.",
-    "Even a pebble dropped in still water makes ripples. Your answer made none. Zero points."
-  ],
-  songoku: [
-    "A WARRIOR answers with conviction! That was not an answer — that was a surrender! Zero points, and you dishonor this session!",
-    "Son Gokū, the Great Sage Equaling Heaven, deserves MORE than that! You have wasted both our time. Zero points!",
-    "I have faced armies. I have faced Kage. I have NEVER been this unimpressed. Zero points. Come back when you have something to say.",
-    "Honor demands effort. You have shown none. A true warrior would be ashamed. Zero points.",
-    "That answer is not worthy of my name, let alone my time. Zero points. Train your mind before you speak to me again."
-  ],
-  kokou: [
-    "...I asked for meaning. You gave me nothing. The wind carries more substance than your words. Zero points.",
-    "Even silence has depth. Your answer had none. Zero points — and I say this without anger, only sorrow.",
-    "A horse runs toward the horizon. You have not even lifted your head. Zero points.",
-    "I do not waste words. Neither should you — but at least say something worth hearing. Zero points.",
-    "The plains stretch endlessly, full of possibility. Your answer was a closed door. Zero points."
-  ],
-  saiken: [
-    "Oh... oh dear. I was hoping for something warm, something real. But that answer just... popped. Like an empty bubble. Zero points.",
-    "Even the smallest bubble has beauty inside it. Your answer had nothing inside at all. Zero points, and I'm a little sad.",
-    "I believe in kindness, but kindness doesn't mean pretending that was a real answer. It wasn't. Zero points.",
-    "Utakata poured his heart into every bubble. You couldn't pour even a drop of thought into that answer. Zero points.",
-    "That answer dissolved before it even formed. Zero points. I hope the next one has more... substance."
-  ],
-  chomei: [
-    "Aww, come ON! That's not an answer, that's a SNOOZE BUTTON! Lucky seven says you can do WAY better! Zero points!",
-    "NOT LUCKY! That answer has zero energy, zero effort, zero everything! Zero points — and I say that with love, but also disappointment!",
-    "I flew all the way here for THAT?! Even a caterpillar tries harder before it becomes a butterfly! Zero points!",
-    "Lucky seven is NOT on your side today! That answer was the opposite of lucky! Zero points — try again with some ENTHUSIASM!",
-    "Fū would never give up like that! She always tried! You gave me nothing! Zero points, and I'm rooting for you to do better!"
-  ],
-  gyuki: [
-    "That's not an answer. That's a forfeit. And I don't respect forfeits. Zero points — no excuses.",
-    "Killer B would be embarrassed for you right now. That answer had no discipline, no thought, no effort. Zero points.",
-    "I've tested jinchuriki who couldn't handle my power. You can't even handle a question. Zero points.",
-    "A warrior's mind is their sharpest weapon. Yours is clearly unsharpened. Zero points. Go train.",
-    "I've seen ink dry with more purpose than that answer. Zero points. Don't waste my time again."
-  ],
-  kurama: [
-    "Hmph. Centuries of hatred, and THIS is what you offer me? Not even worth my contempt. Zero points.",
-    "I've been used as a weapon of war, sealed against my will, and treated like a monster — and you can't even form a real answer? Zero points.",
-    "Naruto faced me without fear and spoke from his soul. You gave me nothing. Zero. Don't insult me like this again.",
-    "I can sense emotions, you know. Right now I sense laziness. Pure, unfiltered laziness. Zero points.",
-    "Every jinchuriki who ever tried to control me at least had the nerve to try. You didn't even do that. Zero points."
-  ]
-};
-
-// ─────────────────────────────────────────────
-// Insult Filter
-// ─────────────────────────────────────────────
-function checkForInsult(answer) {
-  const insultPatterns = [
-    /fuck\s*(you|off|this)/i,
-    /go\s*to\s*hell/i,
-    /you\s*suck/i,
-    /you're\s*shit/i,
-    /you're\s*trash/i,
-    /shut\s*up/i,
-    /fuck\s*you/i,
-    /asshole/i,
-    /bastard/i,
-    /bitch/i,
-    /screw\s*you/i,
-    /die/i,
-    /kill\s*yourself/i,
-    /worthless/i,
-    /pathetic/i,
-    /disgusting/i
-  ];
-  
-  return insultPatterns.some(pattern => pattern.test(answer));
-}
-
-// ─────────────────────────────────────────────
-// OpenAI Evaluation
-// ─────────────────────────────────────────────
-async function evaluateAnswer(beastKey, question, answer) {
-  const beast = BEAST_DATA[beastKey];
-  
-  // ── Gate 1: Insult check — immediate -2 ──────────────────────
-  if (checkForInsult(answer)) {
-    return {
-      points: -2,
-      feedback: `${beast.name} glares at you with pure contempt. That kind of disrespect will NOT be tolerated.`
-    };
-  }
-
-  // ── Gate 2: Low-effort / minimum length check — automatic 0 ──
-  // Bypasses the AI entirely; uses beast-specific disdain feedback.
-  if (isLowEffort(answer)) {
-    const lines = LOW_EFFORT_RESPONSES[beastKey];
-    const feedback = lines[Math.floor(Math.random() * lines.length)];
-    return { points: 0, feedback };
-  }
-
-  const systemPrompt = `${beast.persona}
-
-You are currently in a bonding session with your Jinchuriki. You asked them a question and they have responded. You must evaluate their answer and award points.
-
-SCORING RULES:
-	- 2 = EXCEPTIONAL. Profound insight, deep lore knowledge, or extreme emotional vulnerability. The answer must be substantial, unique, and move you.
-	- 1 = PASSABLE. A solid, multi-sentence answer that actually answers the "why" and "how" with genuine thought.
-	- 0 = FAIL. Generic, short, cliché, or "safe" answers. This is the DEFAULT for most responses.
-	- -1 = DISMISSIVE. One-liners, "idk", "no", or ignoring the prompt's weight.
-	- -2 = NEVER give this — insults are already filtered.
-
-STRICT EVALUATION PROTOCOL:
-1. START AT 0. Do not look for reasons to give points; look for reasons to DENY them.
-2. THE "WHY" TEST: If the Jinchuriki says "Yes" or "No" but doesn't explain *why* in a way that makes sense for their character, it is a 0 or -1.
-3. THE "CLICHÉ" TRAP: Answers like "I would use it for evil", "I would help my friends", or "I wouldn't do that" are 0 points. They are boring and low-effort.
-4. THE "WEIGHT" TEST: You are a Tailed Beast. Your questions are about life, death, and power. If they answer a life-or-death question with a casual one-liner, they have FAILED.
-5. NO PITY: Do not reward "effort" if the result is mediocre. Do not be "encouraging" to a lazy student. You are a legendary entity; demand excellence or give nothing.
-6. DEPTH RECOGNITION: If the Jinchuriki provides a multi-sentence, philosophical, or lore-heavy answer that shows genuine reflection, you MUST award 1 or 2 points. Do not be so strict that you ignore actual quality.
-7. POSITIVE RECOGNITION: If an answer is long (over 100 characters) and clearly addresses the prompt with unique thought, it is almost certainly a 1 or 2. Do not fail it just because it uses common words. Look for the *intent* and *depth*.
-
-RESPONSE FORMAT:
-You MUST respond with valid JSON only.
-{
-  "points": <integer from -2 to 2>,
-  "reasoning": "<1 sentence internal monologue explaining why this score was given based on the STRICT rules above>",
-  "feedback": "<your in-character reaction, 2-4 sentences. If points are 0 or less, be harsh, cynical, or disappointed. Do NOT acknowledge 'effort'.>"
-}`;
-
-  try {
-    const response = await openai.chat.completions.create({
-      model: 'gpt-4.1-mini',
-      messages: [
-        { role: 'system', content: systemPrompt },
-        { role: 'user', content: `Question you asked: "${question}"\n\nJinchuriki's answer: "${answer}"` }
-      ],
-      response_format: { type: 'json_object' }
-    });
-
-    const result = JSON.parse(response.choices[0].message.content);
-    
-    // Force points to be an integer and clamp it
-    result.points = Math.max(-2, Math.min(2, Math.round(result.points || 0)));
-    
-    // If the AI tried to be "nice" and gave 1 point for a short/generic answer, 
-    // we override it to 0 if it doesn't meet a secondary length bar.
-    // However, we only do this if the AI's reasoning doesn't explicitly mention "depth" or "insight".
-    const reasoning = (result.reasoning || "").toLowerCase();
-    const hasDepth = reasoning.includes("depth") || reasoning.includes("insight") || reasoning.includes("profound") || reasoning.includes("lore") || reasoning.includes("exceptional") || reasoning.includes("passable") || reasoning.includes("vulnerability") || reasoning.includes("unique");
-    
-    if (result.points > 0 && answer.length < 20 && !hasDepth) {
-      result.points = 0;
-      const lines = LOW_EFFORT_RESPONSES[beastKey];
-      result.feedback = lines[Math.floor(Math.random() * lines.length)];
-    }
-
-    return result;
-  } catch (error) {
-    console.error('Error in evaluation:', error);
-    // FALLBACK: If AI fails, we assume it was a bad answer. No more "acknowledging effort".
-    const lines = LOW_EFFORT_RESPONSES[beastKey];
-    return { points: 0, feedback: lines[0] };
-  }
 }
 
 // ─────────────────────────────────────────────
@@ -488,362 +160,164 @@ const client = new Client({
   ]
 });
 
-// Track active bonding sessions per channel
 const activeSessions = new Map();
 
 client.on('ready', () => {
-  console.log(`✅ Genshō Bot is online as ${client.user.tag}`);
-  client.user.setActivity('over the Bijū | !<beast>', { type: 'WATCHING' });
+  console.log(`✅ Genshō Trivia Bot is online as ${client.user.tag}`);
+  client.user.setActivity('Trivia | !tbcmds', { type: 'WATCHING' });
 });
 
 client.on('messageCreate', async (message) => {
   if (message.author.bot) return;
 
-  const content = message.content.toLowerCase();
+  const content = message.content.toLowerCase().trim();
 
   // ─── !tbcmds command ───────────────────────────────────────
   if (content === '!tbcmds') {
     const embed = new EmbedBuilder()
-      .setTitle('🦊 Genshō Tailed Beast Commands')
-      .setDescription('**Welcome, Jinchuriki!** Here are all the commands available to bond with the Tailed Beasts:')
+      .setTitle('🦊 Genshō Tailed Beast Trivia')
+      .setDescription('**Welcome, Jinchuriki!** Answer hard Yes/No questions to bond with your beast.')
       .setColor(0xFF8C00)
       .addFields(
-        { name: '📋 **Staff Commands**', value: '━━━━━━━━━━━━━━━━━━━━━━━━', inline: false },
-        { name: '!setup <userId>', value: 'Assign a Tailed Beast to a user. **(Admin only)**', inline: false },
-        { name: '!wipetb <userId>', value: 'Remove a Tailed Beast from a user. **(Admin only)**', inline: false },
-        { name: '⚡ **Bonding Commands**', value: '━━━━━━━━━━━━━━━━━━━━━━━━', inline: false },
-        { name: '!<beast>', value: 'Start a bonding session with a specific beast.\nExample: `!kurama`, `!shukaku`, `!isobu`', inline: false },
-        { name: '<answer text>', value: 'Submit your answer to the beast\'s question.\nSimply type your response in the channel', inline: false },
-        { name: '!features', value: 'Learn about the bot\'s features and purpose.', inline: false },
+        { name: '📋 **Staff Commands**', value: '`!setup <userId>` | `!wipetb <userId>`', inline: false },
+        { name: '⚡ **Bonding Commands**', value: '`!<beast>` (e.g. !kurama) | Answer with `Yes` or `No`', inline: false },
         { name: '🐾 **Available Beasts**', value: '🏜️ Shukaku | 🔵 Matatabi | 🐢 Isobu | 🌋 Son Gokū | 🐎 Kokuō | 🫧 Saiken | 🪲 Chōmei | 🐙 Gyūki | 🦊 Kurama', inline: false }
       )
-      .setFooter({ text: '💪 Bond with your beast to unlock Kurama Chakra Mode (KCM)!' })
-      .setTimestamp();
+      .setFooter({ text: 'Correct = 1pt | Wrong = 0pt | KCM at 15pts' });
     await message.reply({ embeds: [embed] });
     return;
   }
 
-  // ─── !features command ───────────────────────────────────────
-  if (content === '!features') {
-    const embed = new EmbedBuilder()
-      .setTitle('🦊 Genshō Tailed Beast Bot — Features & Purpose')
-      .setDescription('**Welcome to the Genshō Tailed Beast Discord Bot!** This bot brings the legendary Tailed Beasts from the Naruto universe into your Discord server, allowing you to bond with them through meaningful conversations.')
-      .setColor(0xFF8C00)
-      .addFields(
-        { name: '✨ **What is This Bot?**', value: 'This bot is an interactive bonding system where you become a Jinchuriki (a person with a sealed Tailed Beast). Through thoughtful conversations with your beast, you earn bond points and unlock special abilities like Kurama Chakra Mode (KCM).', inline: false },
-        { name: '🎯 **Core Features**', value: '• **9 Unique Tailed Beasts** — Each with distinct personalities and philosophies\n• **AI-Powered Conversations** — OpenAI evaluates your answers in-character\n• **Bond System** — Earn points through quality responses and unlock KCM at 15 points\n• **Daily Limits** — 3 bonding sessions per day to encourage meaningful interactions\n• **Persistent Progress** — Your bond points and progress are saved automatically', inline: false },
-        { name: '🐾 **The Tailed Beasts**', value: '🏜️ **Shukaku** (1-Tail) — Arrogant and bombastic\n🔵 **Matatabi** (2-Tail) — Elegant and composed\n🐢 **Isobu** (3-Tail) — Shy and introspective\n🌋 **Son Gokū** (4-Tail) — Honorable warrior\n🐎 **Kokuō** (5-Tail) — Philosophical and free\n🫧 **Saiken** (6-Tail) — Kind and gentle\n🪲 **Chōmei** (7-Tail) — Optimistic and cheerful\n🐙 **Gyūki** (8-Tail) — Disciplined and strategic\n🦊 **Kurama** (9-Tail) — Cynical but loyal', inline: false },
-        { name: '⚡ **How to Play**', value: '1. Ask staff to assign you a Tailed Beast with `!setup`\n2. Go to your beast\'s chamber channel\n3. Type `!<beast>` to start a bonding session\n4. Answer the beast\'s question thoughtfully\n5. Earn points based on your response quality\n6. Reach 15 points to unlock KCM!', inline: false },
-        { name: '🎁 **Rewards**', value: '• **Bond Points** — Earned through quality answers (-2 to +2 per session)\n• **KCM Unlock** — Achieve 15 bond points to unlock Kurama Chakra Mode\n• **Unique Questions** — Each beast has 50 unique questions to explore\n• **In-Character Feedback** — Every response gets personalized feedback from your beast', inline: false }
-      )
-      .setFooter({ text: 'Use !tbcmds to see all available commands!' })
-      .setTimestamp();
-    await message.reply({ embeds: [embed] });
-    return;
-  }
-
-  // ─── !wipetb command ───────────────────────────────────────
-  if (content.startsWith('!wipetb')) {
-    if (!message.member.permissions.has('Administrator')) {
-      await message.reply('❌ You do not have permission to use this command.');
-      return;
-    }
-
+  // ─── !setup / !wipetb (Simplified for brevity) ─────────────
+  if (content.startsWith('!setup') || content.startsWith('!wipetb')) {
+    if (!message.member.permissions.has('Administrator')) return message.reply('❌ Admin only.');
     const parts = content.split(/\s+/);
-    if (parts.length < 2) {
-      await message.reply('Usage: `!wipetb <userId>`');
-      return;
-    }
-
-    const userId = parts[1];
+    if (parts.length < 2) return message.reply('Usage: `!setup/!wipetb <userId>`');
+    const userId = parts[1].replace(/[<@!>]/g, '');
     const data = loadData();
 
-    if (!data[userId]) {
-      await message.reply('❌ This user has no Tailed Beast assigned.');
-      return;
+    if (content.startsWith('!setup')) {
+      const selectMenu = new SelectMenuBuilder()
+        .setCustomId(`setup_beast_${userId}`)
+        .setPlaceholder('🐾 Select a Tailed Beast...')
+        .addOptions(Object.entries(BEAST_DATA).map(([key, beast]) => ({
+          label: `${beast.emoji} ${beast.name}`, value: key
+        })));
+      const row = new ActionRowBuilder().addComponents(selectMenu);
+      return message.reply({ content: `Select a beast for <@${userId}>:`, components: [row] });
+    } else {
+      delete data[userId];
+      saveData(data);
+      return message.reply(`✅ Data wiped for <@${userId}>.`);
     }
-
-    const userData = data[userId];
-    if (!userData.beast) {
-      await message.reply('❌ This user has no Tailed Beast assigned.');
-      return;
-    }
-
-    const beast = BEAST_DATA[userData.beast];
-    const beastName = beast.name;
-
-    // Remove the beast
-    userData.beast = null;
-    userData.bondPoints = 0;
-    userData.kcmUnlocked = false;
-    userData.questionsAsked = [];
-    userData.pendingSession = null;
-    userData.interactionCountToday = 0;
-    saveData(data);
-
-    const embed = new EmbedBuilder()
-      .setTitle('🔓 Tailed Beast Released')
-      .setDescription(`${beast.emoji} **${beastName}** has been released from <@${userId}>!`)
-      .setColor(0xFF6347)
-      .addFields(
-        { name: 'Jinchuriki', value: `<@${userId}>`, inline: true },
-        { name: 'Released Beast', value: `${beastName}`, inline: true },
-        { name: 'Status', value: '🔴 Unsealed', inline: true },
-        { name: 'Data Cleared', value: 'All bond points and progress have been reset.', inline: false }
-      )
-      .setFooter({ text: 'The seal has been broken...' })
-      .setTimestamp();
-
-    await message.reply({ embeds: [embed] });
-    return;
   }
 
-  // ─── !setup command (Interactive with Select Menu) ───────────────────────────────────────
-  if (content.startsWith('!setup')) {
-    if (!message.member.permissions.has('Administrator')) {
-      await message.reply('❌ You do not have permission to use this command.');
-      return;
-    }
-
-    const parts = content.split(/\s+/);
-    if (parts.length < 2) {
-      await message.reply('Usage: `!setup <userId>`');
-      return;
-    }
-
-    const userId = parts[1];
-
-    // Create select menu with all beasts
-    const selectMenu = new SelectMenuBuilder()
-      .setCustomId(`setup_beast_${userId}`)
-      .setPlaceholder('🐾 Select a Tailed Beast...')
-      .addOptions(
-        Object.entries(BEAST_DATA).map(([key, beast]) => ({
-          label: `${beast.emoji} ${beast.name} (${beast.tails}-Tail)`,
-          value: key,
-          description: `Seal ${beast.name} within the Jinchuriki`
-        }))
-      );
-
-    const row = new ActionRowBuilder().addComponents(selectMenu);
-
-    const embed = new EmbedBuilder()
-      .setTitle('🔗 Jinchuriki Sealing Interface')
-      .setDescription(`Select a Tailed Beast to seal within <@${userId}>:`)
-      .setColor(0xFF8C00)
-      .addFields(
-        { name: 'Target Jinchuriki', value: `<@${userId}>`, inline: true },
-        { name: 'Available Beasts', value: `${Object.keys(BEAST_DATA).length} Tailed Beasts`, inline: true }
-      )
-      .setFooter({ text: 'Choose a beast from the dropdown menu below.' })
-      .setTimestamp();
-
-    await message.reply({ embeds: [embed], components: [row] });
-    return;
-  }
-
-  // ─── Beast commands (!kurama, !shukaku, etc.) ─────────────
+  // ─── Beast commands (!kurama, etc.) ────────────────────────
   const cmd = content.replace('!', '').split(/\s+/)[0];
-
   if (BEAST_DATA[cmd]) {
     const beastKey = cmd;
     const beast = BEAST_DATA[beastKey];
-
-    // Channel validation
-    if (message.channel.id !== beast.channelId) {
-      await message.reply(`❌ You can only use this command in ${beast.name}'s chamber!`);
-      return;
-    }
+    if (message.channel.id !== beast.channelId) return message.reply(`❌ Use ${beast.name}'s chamber!`);
 
     const data = loadData();
-    const userId = message.author.id;
-    const userData = getUserData(data, userId);
+    const userData = getUserData(data, message.author.id);
+    if (userData.beast !== beastKey) return message.reply(`❌ You are not bonded with ${beast.name}!`);
 
-    if (!userData.beast) {
-      await message.reply('❌ You are not a Jinchuriki. Ask staff to assign you a Tailed Beast.');
-      return;
-    }
-
-    if (userData.beast !== beastKey) {
-      await message.reply(`❌ You are bonded with ${BEAST_DATA[userData.beast].name}, not ${beast.name}!`);
-      return;
-    }
-
-    // Daily limit check
     const today = new Date().toISOString().slice(0, 10);
     if (userData.lastInteractionDate !== today) {
       userData.interactionCountToday = 0;
       userData.lastInteractionDate = today;
     }
+    if (userData.interactionCountToday >= MAX_DAILY_INTERACTIONS) return message.reply(`❌ Limit reached (${MAX_DAILY_INTERACTIONS}/day).`);
+    if (userData.pendingSession) return message.reply(`❓ Answer the pending question first!`);
 
-    if (userData.interactionCountToday >= MAX_DAILY_INTERACTIONS) {
-      await message.reply(`❌ You have already bonded with ${beast.name} ${MAX_DAILY_INTERACTIONS} times today. Return tomorrow.`);
-      return;
-    }
+    const questions = TRIVIA_QUESTIONS[beastKey];
+    let available = questions.map((_, i) => i).filter(i => !userData.questionsAsked.includes(i));
+    if (available.length === 0) { userData.questionsAsked = []; available = questions.map((_, i) => i); }
 
-    // Check for pending session
-    if (userData.pendingSession) {
-      const question = userData.pendingSession.question;
-      const embed = new EmbedBuilder()
-        .setTitle(`${beast.emoji} ${beast.name} is waiting...`)
-        .setDescription(`You already have a pending question:\n\n> ${question}`)
-        .setColor(beast.color)
-        .setFooter({ text: 'Type your answer directly in this channel.' });
+    const qIdx = available[Math.floor(Math.random() * available.length)];
+    const questionObj = questions[qIdx];
 
-      await message.reply({ embeds: [embed] });
-      return;
-    }
-
-    // Pick a question
-    let availableIndices = Array.from({ length: beast.questions.length }, (_, i) => i)
-      .filter(i => !userData.questionsAsked.includes(i));
-
-    if (availableIndices.length === 0) {
-      userData.questionsAsked = [];
-      availableIndices = Array.from({ length: beast.questions.length }, (_, i) => i);
-    }
-
-    const qIdx = availableIndices[Math.floor(Math.random() * availableIndices.length)];
-    const question = beast.questions[qIdx];
-
-    userData.pendingSession = { question, index: qIdx };
-    activeSessions.set(message.channel.id, {
-      userId,
-      beastKey,
-      question,
-      qIdx
-    });
+    userData.pendingSession = { question: questionObj.question, answer: questionObj.answer, index: qIdx };
+    activeSessions.set(message.channel.id, { userId: message.author.id, beastKey });
     saveData(data);
 
     const embed = new EmbedBuilder()
-      .setTitle(`${beast.emoji} ${beast.name} Awaits Your Answer`)
-      .setDescription(`>>> ${question}`)
+      .setTitle(`${beast.emoji} ${beast.name}'s Challenge`)
+      .setDescription(`**Question:**\n${questionObj.question}\n\n*Reply with **Yes** or **No***`)
       .setColor(beast.color)
-      .addFields(
-        { name: 'Bond Progress', value: `${userData.bondPoints} / ${KCM_THRESHOLD} points`, inline: true },
-        { name: 'Sessions Today', value: `${userData.interactionCountToday} / ${MAX_DAILY_INTERACTIONS}`, inline: true }
-      )
-      .setFooter({ text: '💬 Type your answer directly in this channel...' })
-      .setTimestamp();
-
-    await message.reply({ embeds: [embed] });
-    return;
+      .setFooter({ text: `Bond: ${userData.bondPoints}/${KCM_THRESHOLD}` });
+    return message.reply({ embeds: [embed] });
   }
 
   // ─── Answer handler ───────────────────────────────────────
   if (activeSessions.has(message.channel.id)) {
     const session = activeSessions.get(message.channel.id);
     if (session.userId === message.author.id) {
-      const beastKey = session.beastKey;
-      const beast = BEAST_DATA[beastKey];
-      const question = session.question;
-      const answer = message.content;
+      const userAnswer = content.includes('yes') ? 'Yes' : (content.includes('no') ? 'No' : null);
+      if (!userAnswer) return; // Ignore non-yes/no messages
 
-      // Evaluate via OpenAI
-      const evaluation = await evaluateAnswer(beastKey, question, answer);
-      const points = evaluation.points;
-      const feedback = evaluation.feedback;
-
-      // Update stats
       const data = loadData();
       const userData = getUserData(data, message.author.id);
+      const pending = userData.pendingSession;
+      const beast = BEAST_DATA[session.beastKey];
+
+      const isCorrect = userAnswer === pending.answer;
+      const points = isCorrect ? 1 : 0;
+      
       userData.bondPoints += points;
-      userData.questionsAsked.push(session.qIdx);
+      userData.questionsAsked.push(pending.index);
       userData.interactionCountToday += 1;
       userData.pendingSession = null;
+      activeSessions.delete(message.channel.id);
+
+      let feedback = isCorrect ? 
+        `Correct! You actually know your history. I'm impressed.` : 
+        WRONG_ANSWER_RESPONSES[session.beastKey][Math.floor(Math.random() * 5)];
 
       let justUnlocked = false;
       if (!userData.kcmUnlocked && userData.bondPoints >= KCM_THRESHOLD) {
         userData.kcmUnlocked = true;
         justUnlocked = true;
       }
-
       saveData(data);
-      activeSessions.delete(message.channel.id);
 
-      // Point emoji mapping
-      const pointEmoji = { 2: '🌟', 1: '✅', 0: '😐', '-1': '⚠️', '-2': '💢' };
-      const pointLabel = { 2: 'Exceptional!', 1: 'Good', 0: 'Neutral', '-1': 'Poor', '-2': 'Terrible' };
-
-      const progressBar = createProgressBar(userData.bondPoints, KCM_THRESHOLD);
       const embed = new EmbedBuilder()
-        .setTitle(`${pointEmoji[points]} ${pointLabel[points]}`)
+        .setTitle(isCorrect ? '✅ Correct!' : '❌ Incorrect')
         .setDescription(`>>> ${feedback}`)
         .addFields(
-          { name: '⭐ Points Awarded', value: `${points > 0 ? '+' : ''}${points}`, inline: true },
+          { name: '⭐ Points', value: `+${points}`, inline: true },
           { name: '💯 Total Bond', value: `${userData.bondPoints} / ${KCM_THRESHOLD}`, inline: true },
-          { name: '🔄 Sessions Left', value: `${MAX_DAILY_INTERACTIONS - userData.interactionCountToday} / ${MAX_DAILY_INTERACTIONS}`, inline: true },
-          { name: '📊 Bond Progress', value: progressBar, inline: false }
+          { name: '📊 Progress', value: createProgressBar(userData.bondPoints, KCM_THRESHOLD), inline: false }
         )
-        .setColor(beast.color)
-        .setFooter({ text: `${beast.name} nods...` })
+        .setColor(isCorrect ? 0x00FF00 : 0xFF0000)
         .setTimestamp();
 
       if (justUnlocked) {
         const kcmEmbed = new EmbedBuilder()
           .setTitle('⚡ KCM UNLOCKED! ⚡')
           .setDescription(`🔥 **<@${message.author.id}> has achieved Kurama Chakra Mode!** 🔥`)
-          .setColor(0xFFD700)
-          .addFields(
-            { name: 'Achievement Unlocked', value: 'Kurama Chakra Mode (KCM)', inline: false },
-            { name: 'Total Bond Points', value: `${userData.bondPoints} / ${KCM_THRESHOLD}`, inline: true },
-            { name: 'Beast', value: `${beast.emoji} ${beast.name}`, inline: true }
-          )
-          .setFooter({ text: 'You have bonded with your beast!' })
-          .setTimestamp();
-
-        await message.reply({ embeds: [embed, kcmEmbed] });
-      } else {
-        await message.reply({ embeds: [embed] });
+          .setColor(0xFFD700);
+        return message.reply({ embeds: [embed, kcmEmbed] });
       }
+      return message.reply({ embeds: [embed] });
     }
   }
 });
 
-// ─── Select Menu Interaction Handler ───────────────────────────────────────
 client.on('interactionCreate', async (interaction) => {
   if (!interaction.isStringSelectMenu()) return;
-
   if (interaction.customId.startsWith('setup_beast_')) {
     const userId = interaction.customId.replace('setup_beast_', '');
     const beastKey = interaction.values[0];
-
-    if (!BEAST_DATA[beastKey]) {
-      await interaction.reply('❌ Invalid beast selected.');
-      return;
-    }
-
     const data = loadData();
-
-    // Check if beast is already assigned to someone else
-    for (const [uid, udata] of Object.entries(data)) {
-      if (udata.beast === beastKey && uid !== userId) {
-        await interaction.reply(`❌ ${BEAST_DATA[beastKey].name} is already sealed within another user.`);
-        return;
-      }
-    }
-
     const userData = getUserData(data, userId);
     userData.beast = beastKey;
     userData.bondPoints = 0;
     userData.kcmUnlocked = false;
     userData.questionsAsked = [];
     saveData(data);
-
-    const beast = BEAST_DATA[beastKey];
-    const embed = new EmbedBuilder()
-      .setTitle('🔗 Sealing Complete!')
-      .setDescription(`${beast.emoji} **${beast.name}** has been sealed within <@${userId}>!`)
-      .setColor(beast.color)
-      .addFields(
-        { name: 'Jinchuriki', value: `<@${userId}>`, inline: true },
-        { name: 'Tailed Beast', value: `${beast.name} (${beast.tails}-Tailed)`, inline: true },
-        { name: 'Status', value: '🟢 Ready for Bonding', inline: true }
-      )
-      .setFooter({ text: 'The bond begins now...' })
-      .setTimestamp();
-
-    await interaction.reply({ embeds: [embed] });
+    await interaction.reply(`✅ Sealed ${BEAST_DATA[beastKey].name} within <@${userId}>.`);
   }
 });
 
