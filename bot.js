@@ -1,10 +1,11 @@
 /**
- * Genshō Tailed Beast Discord Bot - Trivia Edition
- * ===============================================
+ * Genshō Tailed Beast Discord Bot - Bonding Choice Edition
+ * =======================================================
  * A Discord bot mirroring the Genshō Tailed Beast web project.
  * Uses ! prefix commands for all interactions.
  * 
- * This version uses a Hard Yes/No Trivia system (50 questions per beast).
+ * This version uses a "Bonding Choice" system (50 deep Yes/No questions per beast).
+ * Limit: 1 interaction per 24 hours.
  */
 
 const { Client, GatewayIntentBits, EmbedBuilder, ChannelType, SelectMenuBuilder, ButtonBuilder, ActionRowBuilder, ButtonStyle } = require('discord.js');
@@ -17,18 +18,18 @@ require('dotenv').config();
 // ─────────────────────────────────────────────
 const DISCORD_TOKEN = process.env.DISCORD_TOKEN || 'YOUR_DISCORD_BOT_TOKEN';
 const DATA_FILE = path.join(__dirname, 'jinchuriki_data.json');
-const QUESTIONS_FILE = path.join(__dirname, 'questions.json');
+const QUESTIONS_FILE = path.join(__dirname, 'bonding_questions.json');
 const KCM_THRESHOLD = 15;
-const MAX_DAILY_INTERACTIONS = 3;
+const MAX_DAILY_INTERACTIONS = 1; // Updated to 1 per day
 
 // ─────────────────────────────────────────────
 // Load Questions
 // ─────────────────────────────────────────────
-let TRIVIA_QUESTIONS = {};
+let BONDING_QUESTIONS = {};
 if (fs.existsSync(QUESTIONS_FILE)) {
-  TRIVIA_QUESTIONS = JSON.parse(fs.readFileSync(QUESTIONS_FILE, 'utf-8'));
+  BONDING_QUESTIONS = JSON.parse(fs.readFileSync(QUESTIONS_FILE, 'utf-8'));
 } else {
-  console.error("CRITICAL: questions.json not found!");
+  console.error("CRITICAL: bonding_questions.json not found!");
 }
 
 // ─────────────────────────────────────────────
@@ -47,71 +48,71 @@ const BEAST_DATA = {
 };
 
 // ─────────────────────────────────────────────
-// Beast-Specific Disdain Lines (for wrong answers)
+// Beast-Specific Disdain Lines (for "Wrong" Bonding Choices)
 // ─────────────────────────────────────────────
-const WRONG_ANSWER_RESPONSES = {
+const WRONG_CHOICE_RESPONSES = {
   shukaku: [
-    "WRONG! Ore-sama is insulted by your ignorance! A sandcastle has more brains than you!",
-    "HA! You think that's the answer?! You're as weak as that mangy fox says you are!",
-    "Pathetic! Ore-sama's absolute defense couldn't even protect you from your own stupidity!",
-    "Incorrect! Begone before I bury you in a sand tomb!",
-    "You know nothing of my greatness! Zero points!"
+    "Hmph! You're as weak as a sandcastle in a storm! Ore-sama has no time for cowards!",
+    "WRONG! You think that's the path to power?! You're just another pathetic human!",
+    "Ore-sama is insulted! That choice was as hollow as an empty dune!",
+    "Incorrect! You don't deserve my sand, let alone my respect!",
+    "Zero points! You're not worthy of being Ore-sama's Jinchuriki!"
   ],
   matatabi: [
-    "How disappointing. I expected elegance, but you offered only error. Zero points.",
-    "A cat always lands on its feet, but you have fallen flat. Incorrect.",
-    "My blue flames burn for the wise. You, however, are in the dark. Zero points.",
-    "Elegance requires knowledge. You have shown neither. Incorrect.",
-    "That was not the truth. I hope the silence teaches you better. Zero points."
+    "How disappointing. That choice lacked the elegance I require. Zero points.",
+    "A cat always lands on its feet, but you have stumbled into dishonor. Incorrect.",
+    "My blue flames burn for the refined. You, however, are crude. Zero points.",
+    "That was not the path of grace. I hope the silence teaches you better.",
+    "Incorrect. You have failed to honor the bond I offered. Zero points."
   ],
   isobu: [
-    "Oh... that's not right. I'll just... go back to the deep now. Zero points.",
-    "Incorrect... the ocean is quiet, but your answer was just... wrong.",
-    "I... I expected more. Zero points. Please try harder next time.",
-    "The tides don't lie, but you just did. Incorrect.",
-    "Even a pebble knows better. Zero points."
+    "Oh... that's not the right heart. I'll just... go back to the deep now. Zero points.",
+    "Incorrect... the ocean is quiet, but your choice was just... wrong.",
+    "I... I expected more depth from you. Zero points. Please try harder next time.",
+    "The tides don't lie, but your heart just did. Incorrect.",
+    "Even a pebble knows better than that. Zero points."
   ],
   songoku: [
-    "A warrior must know his history! That was a shameful display! Zero points!",
-    "Son Gokū is not impressed! You have dishonored this session with your ignorance!",
-    "Incorrect! A true Sage would never make such a mistake!",
-    "You call yourself a Jinchuriki? You're just a tool with no knowledge! Zero points!",
-    "That answer was a surrender! I do not respect cowards or the ignorant!"
+    "A warrior must have honor! That choice was a disgrace! Zero points!",
+    "Son Gokū is not impressed! You have dishonored our partnership with that answer!",
+    "Incorrect! A true Sage would never choose such a cowardly path!",
+    "You call yourself a warrior? You're just a tool with no conviction! Zero points!",
+    "That choice was a surrender! I do not respect those who lack a warrior's soul!"
   ],
   kokou: [
-    "...Incorrect. The wind carries the truth, but you did not listen. Zero points.",
-    "Wisdom is silent; ignorance is loud. Your answer was loud and wrong.",
-    "I run toward the horizon, but you are stuck in a fog of error. Zero points.",
-    "That was not the path. Incorrect.",
-    "Freedom requires truth. You have neither right now. Zero points."
+    "...Incorrect. The wind carries the truth, but you chose the lie. Zero points.",
+    "Wisdom is silent; your choice was loud and wrong. Zero points.",
+    "I run toward the horizon, but you are stuck in the mud of error. Zero points.",
+    "That was not the path of freedom. Incorrect.",
+    "Honor requires truth. You have shown neither right now. Zero points."
   ],
   saiken: [
-    "Oh dear... that answer just popped like an empty bubble. Zero points.",
-    "Even my slime has more substance than that guess. Incorrect.",
-    "I'm a little sad... I thought you knew me better. Zero points.",
-    "That answer dissolved into nothing. Incorrect.",
-    "Bubbles are fragile, but your knowledge is even weaker. Zero points."
+    "Oh dear... that choice just popped like an empty bubble. Zero points.",
+    "Even my slime has more substance than that decision. Incorrect.",
+    "I'm a little sad... I thought you were kinder than that. Zero points.",
+    "That choice dissolved into nothing. Incorrect.",
+    "Bubbles are fragile, but your conviction is even weaker. Zero points."
   ],
   chomei: [
-    "NOT LUCKY! That was the wrong answer! Lucky seven is disappointed! Zero points!",
-    "Aww, come on! Even a caterpillar knows the answer to that! Incorrect!",
-    "Zero points! You need to fly higher and study harder!",
+    "NOT LUCKY! That was the wrong choice! Lucky seven is disappointed! Zero points!",
+    "Aww, come on! Even a caterpillar knows better than that! Incorrect!",
+    "Zero points! You need to fly higher and find your true spirit!",
     "That was a total miss! No luck for you today! Incorrect!",
-    "Fū would have known that! You're not being very lucky right now! Zero points!"
+    "Fū would never have chosen that! You're not being very lucky right now! Zero points!"
   ],
   gyuki: [
-    "Incorrect. That's a forfeit in my book. Zero points.",
-    "Killer B would rap about how wrong you are. Discipline your mind. Zero points.",
-    "A warrior's mind must be sharp. Yours is dull. Incorrect.",
-    "No excuses. You were wrong. Zero points.",
-    "I've seen ink dry with more purpose than that answer. Incorrect."
+    "Incorrect. That's a forfeit of character in my book. Zero points.",
+    "Killer B would rap about how weak that choice was. Discipline your soul. Zero points.",
+    "A warrior's mind must be sharp. Your choice was dull. Incorrect.",
+    "No excuses. You chose the wrong path. Zero points.",
+    "I've seen ink dry with more purpose than that decision. Incorrect."
   ],
   kurama: [
-    "Hmph. Centuries of history, and you know nothing. Zero points.",
-    "Naruto would have known that. You're just another disappointing human. Incorrect.",
-    "I can sense your uncertainty. You were guessing, and you were wrong. Zero points.",
-    "Don't insult my intelligence with such a pathetic answer. Incorrect.",
-    "You want my power? Earn it with knowledge, not guesses. Zero points."
+    "Hmph. Centuries of history, and you still choose the path of a fool. Zero points.",
+    "Naruto would have known better. You're just another disappointing human.",
+    "I can sense your uncertainty. You chose the safe path, not the right one. Zero points.",
+    "Don't insult my intelligence with such a pathetic choice. Incorrect.",
+    "You want my power? Earn it with conviction, not cowardice. Zero points."
   ]
 };
 
@@ -163,8 +164,8 @@ const client = new Client({
 const activeSessions = new Map();
 
 client.on('ready', () => {
-  console.log(`✅ Genshō Trivia Bot is online as ${client.user.tag}`);
-  client.user.setActivity('Trivia | !tbcmds', { type: 'WATCHING' });
+  console.log(`✅ Genshō Bonding Bot is online as ${client.user.tag}`);
+  client.user.setActivity('Bonding | !tbcmds', { type: 'WATCHING' });
 });
 
 client.on('messageCreate', async (message) => {
@@ -175,20 +176,20 @@ client.on('messageCreate', async (message) => {
   // ─── !tbcmds command ───────────────────────────────────────
   if (content === '!tbcmds') {
     const embed = new EmbedBuilder()
-      .setTitle('🦊 Genshō Tailed Beast Trivia')
-      .setDescription('**Welcome, Jinchuriki!** Answer hard Yes/No questions to bond with your beast.')
+      .setTitle('🦊 Genshō Tailed Beast Bonding')
+      .setDescription('**Welcome, Jinchuriki!** Make the right choices to bond with your beast.')
       .setColor(0xFF8C00)
       .addFields(
         { name: '📋 **Staff Commands**', value: '`!setup <userId>` | `!wipetb <userId>`', inline: false },
         { name: '⚡ **Bonding Commands**', value: '`!<beast>` (e.g. !kurama) | Answer with `Yes` or `No`', inline: false },
         { name: '🐾 **Available Beasts**', value: '🏜️ Shukaku | 🔵 Matatabi | 🐢 Isobu | 🌋 Son Gokū | 🐎 Kokuō | 🫧 Saiken | 🪲 Chōmei | 🐙 Gyūki | 🦊 Kurama', inline: false }
       )
-      .setFooter({ text: 'Correct = 1pt | Wrong = 0pt | KCM at 15pts' });
+      .setFooter({ text: 'Correct Choice = 1pt | Wrong Choice = 0pt | Limit: 1/day' });
     await message.reply({ embeds: [embed] });
     return;
   }
 
-  // ─── !setup / !wipetb (Simplified for brevity) ─────────────
+  // ─── !setup / !wipetb ──────────────────────────────────────
   if (content.startsWith('!setup') || content.startsWith('!wipetb')) {
     if (!message.member.permissions.has('Administrator')) return message.reply('❌ Admin only.');
     const parts = content.split(/\s+/);
@@ -224,14 +225,13 @@ client.on('messageCreate', async (message) => {
     if (userData.beast !== beastKey) return message.reply(`❌ You are not bonded with ${beast.name}!`);
 
     const today = new Date().toISOString().slice(0, 10);
-    if (userData.lastInteractionDate !== today) {
-      userData.interactionCountToday = 0;
-      userData.lastInteractionDate = today;
+    if (userData.lastInteractionDate === today && userData.interactionCountToday >= MAX_DAILY_INTERACTIONS) {
+      return message.reply(`❌ You have already bonded with ${beast.name} today. Return tomorrow.`);
     }
-    if (userData.interactionCountToday >= MAX_DAILY_INTERACTIONS) return message.reply(`❌ Limit reached (${MAX_DAILY_INTERACTIONS}/day).`);
+
     if (userData.pendingSession) return message.reply(`❓ Answer the pending question first!`);
 
-    const questions = TRIVIA_QUESTIONS[beastKey];
+    const questions = BONDING_QUESTIONS[beastKey];
     let available = questions.map((_, i) => i).filter(i => !userData.questionsAsked.includes(i));
     if (available.length === 0) { userData.questionsAsked = []; available = questions.map((_, i) => i); }
 
@@ -243,10 +243,10 @@ client.on('messageCreate', async (message) => {
     saveData(data);
 
     const embed = new EmbedBuilder()
-      .setTitle(`${beast.emoji} ${beast.name}'s Challenge`)
-      .setDescription(`**Question:**\n${questionObj.question}\n\n*Reply with **Yes** or **No***`)
+      .setTitle(`${beast.emoji} ${beast.name}'s Bonding Choice`)
+      .setDescription(`**${beast.name} asks:**\n\n"${questionObj.question}"\n\n*Reply with **Yes** or **No***`)
       .setColor(beast.color)
-      .setFooter({ text: `Bond: ${userData.bondPoints}/${KCM_THRESHOLD}` });
+      .setFooter({ text: `Bond: ${userData.bondPoints}/${KCM_THRESHOLD} | Limit: 1/day` });
     return message.reply({ embeds: [embed] });
   }
 
@@ -267,13 +267,14 @@ client.on('messageCreate', async (message) => {
       
       userData.bondPoints += points;
       userData.questionsAsked.push(pending.index);
-      userData.interactionCountToday += 1;
+      userData.interactionCountToday = 1;
+      userData.lastInteractionDate = new Date().toISOString().slice(0, 10);
       userData.pendingSession = null;
       activeSessions.delete(message.channel.id);
 
       let feedback = isCorrect ? 
-        `Correct! You actually know your history. I'm impressed.` : 
-        WRONG_ANSWER_RESPONSES[session.beastKey][Math.floor(Math.random() * 5)];
+        `I see... your heart is true. We are one step closer to understanding each other.` : 
+        WRONG_CHOICE_RESPONSES[session.beastKey][Math.floor(Math.random() * 5)];
 
       let justUnlocked = false;
       if (!userData.kcmUnlocked && userData.bondPoints >= KCM_THRESHOLD) {
@@ -283,7 +284,7 @@ client.on('messageCreate', async (message) => {
       saveData(data);
 
       const embed = new EmbedBuilder()
-        .setTitle(isCorrect ? '✅ Correct!' : '❌ Incorrect')
+        .setTitle(isCorrect ? '✨ Bond Strengthened' : '💔 Bond Weakened')
         .setDescription(`>>> ${feedback}`)
         .addFields(
           { name: '⭐ Points', value: `+${points}`, inline: true },
