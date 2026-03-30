@@ -246,6 +246,15 @@ function getUserData(data, userId) {
 }
 
 // ─────────────────────────────────────────────
+// Utility Functions
+// ─────────────────────────────────────────────
+function createProgressBar(current, max) {
+  const filled = Math.round((current / max) * 10);
+  const empty = 10 - filled;
+  return `[${'█'.repeat(filled)}${'░'.repeat(empty)}] ${current}/${max}`;
+}
+
+// ─────────────────────────────────────────────
 // OpenAI Evaluation
 // ─────────────────────────────────────────────
 async function evaluateAnswer(beastKey, question, answer) {
@@ -316,15 +325,97 @@ client.on('messageCreate', async (message) => {
   // ─── !tbcmds command ───────────────────────────────────────
   if (content === '!tbcmds') {
     const embed = new EmbedBuilder()
-      .setTitle('Genshō Tailed Beast Commands')
-      .setDescription('Here are the commands you can use to interact with the Tailed Beasts:')
-      .setColor(0x0099FF)
+      .setTitle('🦊 Genshō Tailed Beast Commands')
+      .setDescription('**Welcome, Jinchuriki!** Here are all the commands available to bond with the Tailed Beasts:')
+      .setColor(0xFF8C00)
       .addFields(
-        { name: '!setup <beast> <userId>', value: '[Staff] Assign a Tailed Beast to a user.', inline: false },
-        { name: '!<beast>', value: 'Start a bonding session with a specific beast (e.g., !kurama, !shukaku).', inline: false },
-        { name: '<answer text>', value: 'Submit your answer to an active bonding question.', inline: false }
+        { name: '📋 **Staff Commands**', value: '━━━━━━━━━━━━━━━━━━━━━━━━', inline: false },
+        { name: '!setup <beast> <userId>', value: 'Assign a Tailed Beast to a user. **(Admin only)**', inline: false },
+        { name: '!wipetb <userId>', value: 'Remove a Tailed Beast from a user. **(Admin only)**', inline: false },
+        { name: '⚡ **Bonding Commands**', value: '━━━━━━━━━━━━━━━━━━━━━━━━', inline: false },
+        { name: '!<beast>', value: 'Start a bonding session with a specific beast.\nExample: `!kurama`, `!shukaku`, `!isobu`', inline: false },
+        { name: '<answer text>', value: 'Submit your answer to the beast\'s question.\nSimply type your response in the channel.', inline: false },
+        { name: '📚 **Info Commands**', value: '━━━━━━━━━━━━━━━━━━━━━━━━', inline: false },
+        { name: '!features', value: 'Learn about the bot\'s features and purpose.', inline: false },
+        { name: '🐾 **Available Beasts**', value: '🏜️ Shukaku | 🔵 Matatabi | 🐢 Isobu | 🌋 Son Gokū | 🐎 Kokuō | 🫧 Saiken | 🪲 Chōmei | 🐙 Gyūki | 🦊 Kurama', inline: false }
       )
-      .setFooter({ text: 'More commands may be added in the future!' });
+      .setFooter({ text: '💪 Bond with your beast to unlock Kurama Chakra Mode (KCM)!' })
+      .setTimestamp();
+    await message.reply({ embeds: [embed] });
+    return;
+  }
+
+  // ─── !features command ───────────────────────────────────────
+  if (content === '!features') {
+    const embed = new EmbedBuilder()
+      .setTitle('🦊 Genshō Tailed Beast Bot — Features & Purpose')
+      .setDescription('**Welcome to the Genshō Tailed Beast Discord Bot!** This bot brings the legendary Tailed Beasts from the Naruto universe into your Discord server, allowing you to bond with them through meaningful conversations.')
+      .setColor(0xFF8C00)
+      .addFields(
+        { name: '✨ **What is This Bot?**', value: 'This bot is an interactive bonding system where you become a Jinchuriki (a person with a sealed Tailed Beast). Through thoughtful conversations with your beast, you earn bond points and unlock special abilities like Kurama Chakra Mode (KCM).', inline: false },
+        { name: '🎯 **Core Features**', value: '• **9 Unique Tailed Beasts** — Each with distinct personalities and philosophies\n• **AI-Powered Conversations** — OpenAI evaluates your answers in-character\n• **Bond System** — Earn points through quality responses and unlock KCM at 15 points\n• **Daily Limits** — 3 bonding sessions per day to encourage meaningful interactions\n• **Persistent Progress** — Your bond points and progress are saved automatically', inline: false },
+        { name: '🐾 **The Tailed Beasts**', value: '🏜️ **Shukaku** (1-Tail) — Arrogant and bombastic\n🔵 **Matatabi** (2-Tail) — Elegant and composed\n🐢 **Isobu** (3-Tail) — Shy and introspective\n🌋 **Son Gokū** (4-Tail) — Honorable warrior\n🐎 **Kokuō** (5-Tail) — Philosophical and free\n🫧 **Saiken** (6-Tail) — Kind and gentle\n🪲 **Chōmei** (7-Tail) — Optimistic and cheerful\n🐙 **Gyūki** (8-Tail) — Disciplined and strategic\n🦊 **Kurama** (9-Tail) — Cynical but loyal', inline: false },
+        { name: '⚡ **How to Play**', value: '1. Ask staff to assign you a Tailed Beast with `!setup`\n2. Go to your beast\'s chamber channel\n3. Type `!<beast>` to start a bonding session\n4. Answer the beast\'s question thoughtfully\n5. Earn points based on your response quality\n6. Reach 15 points to unlock KCM!', inline: false },
+        { name: '🎁 **Rewards**', value: '• **Bond Points** — Earned through quality answers (-2 to +2 per session)\n• **KCM Unlock** — Achieve 15 bond points to unlock Kurama Chakra Mode\n• **Unique Questions** — Each beast has 50 unique questions to explore\n• **In-Character Feedback** — Every response gets personalized feedback from your beast', inline: false }
+      )
+      .setFooter({ text: 'Use !tbcmds to see all available commands!' })
+      .setTimestamp();
+    await message.reply({ embeds: [embed] });
+    return;
+  }
+
+  // ─── !wipetb command ───────────────────────────────────────
+  if (content.startsWith('!wipetb')) {
+    if (!message.member.permissions.has('Administrator')) {
+      await message.reply('❌ You do not have permission to use this command.');
+      return;
+    }
+
+    const parts = content.split(/\s+/);
+    if (parts.length < 2) {
+      await message.reply('Usage: `!wipetb <userId>`');
+      return;
+    }
+
+    const userId = parts[1];
+    const data = loadData();
+
+    if (!data[userId]) {
+      await message.reply('❌ This user has no Tailed Beast assigned.');
+      return;
+    }
+
+    const userData = data[userId];
+    if (!userData.beast) {
+      await message.reply('❌ This user has no Tailed Beast assigned.');
+      return;
+    }
+
+    const beast = BEAST_DATA[userData.beast];
+    const beastName = beast.name;
+
+    // Remove the beast
+    userData.beast = null;
+    userData.bondPoints = 0;
+    userData.kcmUnlocked = false;
+    userData.questionsAsked = [];
+    userData.pendingSession = null;
+    userData.interactionCountToday = 0;
+    saveData(data);
+
+    const embed = new EmbedBuilder()
+      .setTitle('🔓 Tailed Beast Released')
+      .setDescription(`${beast.emoji} **${beastName}** has been released from <@${userId}>!`)
+      .setColor(0xFF6347)
+      .addFields(
+        { name: 'Jinchuriki', value: `<@${userId}>`, inline: true },
+        { name: 'Released Beast', value: `${beastName}`, inline: true },
+        { name: 'Status', value: '🔴 Unsealed', inline: true },
+        { name: 'Data Cleared', value: 'All bond points and progress have been reset.', inline: false }
+      )
+      .setFooter({ text: 'The seal has been broken...' })
+      .setTimestamp();
+
     await message.reply({ embeds: [embed] });
     return;
   }
@@ -370,9 +461,15 @@ client.on('messageCreate', async (message) => {
 
     const beast = BEAST_DATA[beastKey];
     const embed = new EmbedBuilder()
-      .setTitle('🔗 Tailed Beast Sealed!')
-      .setDescription(`<@${userId}> is now the Jinchuriki of **${beast.name}**!`)
+      .setTitle('🔗 Sealing Complete!')
+      .setDescription(`${beast.emoji} **${beast.name}** has been sealed within <@${userId}>!`)
       .setColor(beast.color)
+      .addFields(
+        { name: 'Jinchuriki', value: `<@${userId}>`, inline: true },
+        { name: 'Tailed Beast', value: `${beast.name} (${beast.tails}-Tailed)`, inline: true },
+        { name: 'Status', value: '🟢 Ready for Bonding', inline: true }
+      )
+      .setFooter({ text: 'The bond begins now...' })
       .setTimestamp();
 
     await message.reply({ embeds: [embed] });
@@ -453,10 +550,15 @@ client.on('messageCreate', async (message) => {
     saveData(data);
 
     const embed = new EmbedBuilder()
-      .setTitle(`${beast.emoji} ${beast.name} speaks...`)
-      .setDescription(question)
+      .setTitle(`${beast.emoji} ${beast.name} Awaits Your Answer`)
+      .setDescription(`>>> ${question}`)
       .setColor(beast.color)
-      .setFooter({ text: 'Type your answer directly in this channel.' });
+      .addFields(
+        { name: 'Bond Progress', value: `${userData.bondPoints} / ${KCM_THRESHOLD} points`, inline: true },
+        { name: 'Sessions Today', value: `${userData.interactionCountToday} / ${MAX_DAILY_INTERACTIONS}`, inline: true }
+      )
+      .setFooter({ text: '💬 Type your answer directly in this channel...' })
+      .setTimestamp();
 
     await message.reply({ embeds: [embed] });
     return;
@@ -497,22 +599,31 @@ client.on('messageCreate', async (message) => {
       const pointEmoji = { 2: '🌟', 1: '✅', 0: '😐', '-1': '⚠️', '-2': '💢' };
       const pointLabel = { 2: 'Exceptional!', 1: 'Good', 0: 'Neutral', '-1': 'Poor', '-2': 'Terrible' };
 
+      const progressBar = createProgressBar(userData.bondPoints, KCM_THRESHOLD);
       const embed = new EmbedBuilder()
         .setTitle(`${pointEmoji[points]} ${pointLabel[points]}`)
-        .setDescription(feedback)
+        .setDescription(`>>> ${feedback}`)
         .addFields(
-          { name: 'Points Awarded', value: `${points > 0 ? '+' : ''}${points}`, inline: true },
-          { name: 'Total Bond', value: `${userData.bondPoints} / ${KCM_THRESHOLD}`, inline: true },
-          { name: 'Sessions Left Today', value: `${MAX_DAILY_INTERACTIONS - userData.interactionCountToday}`, inline: true }
+          { name: '\ud83c\udf1f Points Awarded', value: `${points > 0 ? '+' : ''}${points}`, inline: true },
+          { name: '\ud83d\udcaf Total Bond', value: `${userData.bondPoints} / ${KCM_THRESHOLD}`, inline: true },
+          { name: '\ud83d\udd04 Sessions Left', value: `${MAX_DAILY_INTERACTIONS - userData.interactionCountToday} / ${MAX_DAILY_INTERACTIONS}`, inline: true },
+          { name: '\ud83d\udcca Bond Progress', value: progressBar, inline: false }
         )
         .setColor(beast.color)
+        .setFooter({ text: `${beast.name} nods...` })
         .setTimestamp();
 
       if (justUnlocked) {
         const kcmEmbed = new EmbedBuilder()
           .setTitle('⚡ KCM UNLOCKED! ⚡')
-          .setDescription(`<@${message.author.id}> has achieved Kurama Chakra Mode!`)
+          .setDescription(`🔥 **<@${message.author.id}> has achieved Kurama Chakra Mode!** 🔥`)
           .setColor(0xFFD700)
+          .addFields(
+            { name: 'Achievement Unlocked', value: 'Kurama Chakra Mode (KCM)', inline: false },
+            { name: 'Total Bond Points', value: `${userData.bondPoints} / ${KCM_THRESHOLD}`, inline: true },
+            { name: 'Beast', value: `${beast.emoji} ${beast.name}`, inline: true }
+          )
+          .setFooter({ text: 'You have bonded with your beast!' })
           .setTimestamp();
 
         await message.reply({ embeds: [embed, kcmEmbed] });
