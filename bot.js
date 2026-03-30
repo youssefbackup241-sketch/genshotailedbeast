@@ -417,11 +417,11 @@ async function evaluateAnswer(beastKey, question, answer) {
 You are currently in a bonding session with your Jinchuriki. You asked them a question and they have responded. You must evaluate their answer and award points.
 
 SCORING RULES:
-- 2 = EXCEPTIONAL. Shows profound insight, deep lore knowledge, or extreme emotional vulnerability.
-- 1 = PASSABLE. A solid, multi-sentence answer that actually answers the "why" and "how".
-- 0 = FAIL. Generic, short, cliché, or "safe" answers. This is the DEFAULT for most responses.
-- -1 = DISMISSIVE. One-liners, "idk", "no", or ignoring the prompt's weight.
-- -2 = NEVER give this — insults are already filtered.
+	- 2 = EXCEPTIONAL. Shows profound insight, deep lore knowledge, or extreme emotional vulnerability. The answer must be substantial and unique.
+	- 1 = PASSABLE. A solid, multi-sentence answer that actually answers the "why" and "how" with some level of thought.
+	- 0 = FAIL. Generic, short, cliché, or "safe" answers. This is the DEFAULT for most responses.
+	- -1 = DISMISSIVE. One-liners, "idk", "no", or ignoring the prompt's weight.
+	- -2 = NEVER give this — insults are already filtered.
 
 STRICT EVALUATION PROTOCOL:
 1. START AT 0. Do not look for reasons to give points; look for reasons to DENY them.
@@ -429,6 +429,7 @@ STRICT EVALUATION PROTOCOL:
 3. THE "CLICHÉ" TRAP: Answers like "I would use it for evil", "I would help my friends", or "I wouldn't do that" are 0 points. They are boring and low-effort.
 4. THE "WEIGHT" TEST: You are a Tailed Beast. Your questions are about life, death, and power. If they answer a life-or-death question with a casual one-liner, they have FAILED.
 5. NO PITY: Do not reward "effort" if the result is mediocre. Do not be "encouraging" to a lazy student. You are a legendary entity; demand excellence or give nothing.
+6. DEPTH RECOGNITION: If the Jinchuriki provides a multi-sentence, philosophical, or lore-heavy answer that shows genuine reflection, you MUST award 1 or 2 points. Do not be so strict that you ignore actual quality.
 
 RESPONSE FORMAT:
 You MUST respond with valid JSON only.
@@ -455,7 +456,11 @@ You MUST respond with valid JSON only.
     
     // If the AI tried to be "nice" and gave 1 point for a short/generic answer, 
     // we override it to 0 if it doesn't meet a secondary length bar.
-    if (result.points > 0 && answer.length < 20) {
+    // However, we only do this if the AI's reasoning doesn't explicitly mention "depth" or "insight".
+    const reasoning = (result.reasoning || "").toLowerCase();
+    const hasDepth = reasoning.includes("depth") || reasoning.includes("insight") || reasoning.includes("profound") || reasoning.includes("lore");
+    
+    if (result.points > 0 && answer.length < 20 && !hasDepth) {
       result.points = 0;
       const lines = LOW_EFFORT_RESPONSES[beastKey];
       result.feedback = lines[Math.floor(Math.random() * lines.length)];
