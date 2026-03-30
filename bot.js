@@ -417,11 +417,11 @@ async function evaluateAnswer(beastKey, question, answer) {
 You are currently in a bonding session with your Jinchuriki. You asked them a question and they have responded. You must evaluate their answer and award points.
 
 SCORING RULES:
-- Award exactly ONE integer from this scale: -2, -1, 0, 1, 	- 2 = EXCEPTIONAL. Shows profound insight, deep lore knowledge, or extreme emotional vulnerability.
-	- 1 = PASSABLE. A solid, multi-sentence answer that actually answers the "why" and "how".
-	- 0 = FAIL. Generic, short, cliché, or "safe" answers. This is the DEFAULT for most responses.
-	- -1 = DISMISSIVE. One-liners, "idk", "no", or ignoring the prompt's weight.
-	- -2 = NEVER give this — insults are already filtered.
+- 2 = EXCEPTIONAL. Shows profound insight, deep lore knowledge, or extreme emotional vulnerability.
+- 1 = PASSABLE. A solid, multi-sentence answer that actually answers the "why" and "how".
+- 0 = FAIL. Generic, short, cliché, or "safe" answers. This is the DEFAULT for most responses.
+- -1 = DISMISSIVE. One-liners, "idk", "no", or ignoring the prompt's weight.
+- -2 = NEVER give this — insults are already filtered.
 
 STRICT EVALUATION PROTOCOL:
 1. START AT 0. Do not look for reasons to give points; look for reasons to DENY them.
@@ -435,8 +435,8 @@ You MUST respond with valid JSON only.
 {
   "points": <integer from -2 to 2>,
   "reasoning": "<1 sentence internal monologue explaining why this score was given based on the STRICT rules above>",
-	  "feedback": "<your in-character reaction, 2-4 sentences. If points are 0 or less, be harsh, cynical, or disappointed. Do NOT acknowledge 'effort'.>"
-	}\`;
+  "feedback": "<your in-character reaction, 2-4 sentences. If points are 0 or less, be harsh, cynical, or disappointed. Do NOT acknowledge 'effort'.>"
+}`;
 
   try {
     const response = await openai.chat.completions.create({
@@ -507,8 +507,7 @@ client.on('messageCreate', async (message) => {
         { name: '!wipetb <userId>', value: 'Remove a Tailed Beast from a user. **(Admin only)**', inline: false },
         { name: '⚡ **Bonding Commands**', value: '━━━━━━━━━━━━━━━━━━━━━━━━', inline: false },
         { name: '!<beast>', value: 'Start a bonding session with a specific beast.\nExample: `!kurama`, `!shukaku`, `!isobu`', inline: false },
-        { name: '<answer text>', value: 'Submit your answer to the beast\'s question.\nSimply type your response in the channel.', inline: false },
-        { name: '📚 **Info Commands**', value: '━━━━━━━━━━━━━━━━━━━━━━━━', inline: false },
+        { name: '<answer text>', value: 'Submit your answer to the beast\'s question.\nSimply type your response in the channel', inline: false },
         { name: '!features', value: 'Learn about the bot\'s features and purpose.', inline: false },
         { name: '🐾 **Available Beasts**', value: '🏜️ Shukaku | 🔵 Matatabi | 🐢 Isobu | 🌋 Son Gokū | 🐎 Kokuō | 🫧 Saiken | 🪲 Chōmei | 🐙 Gyūki | 🦊 Kurama', inline: false }
       )
