@@ -5,12 +5,12 @@
  * Uses ! prefix commands for all interactions.
  * 
  * Commands:
- *   !setup <beast> <userId>  - [Staff] Assign a Tailed Beast to a user
+ *   !setup <userId>          - [Staff] Assign a Tailed Beast to a user (interactive)
  *   !<beast>                 - Start a bonding session (e.g. !kurama, !shukaku)
  *   <answer text>            - Submit your answer to an active bonding question
  */
 
-const { Client, GatewayIntentBits, EmbedBuilder, ChannelType } = require('discord.js');
+const { Client, GatewayIntentBits, EmbedBuilder, ChannelType, SelectMenuBuilder, ButtonBuilder, ActionRowBuilder, ButtonStyle } = require('discord.js');
 const { OpenAI } = require('openai');
 const fs = require('fs');
 const path = require('path');
@@ -217,7 +217,7 @@ const BEAST_DATA = {
 };
 
 // ─────────────────────────────────────────────
-// Data Persistence
+// Persistent Data Helpers
 // ─────────────────────────────────────────────
 function loadData() {
   if (fs.existsSync(DATA_FILE)) {
@@ -330,7 +330,7 @@ client.on('messageCreate', async (message) => {
       .setColor(0xFF8C00)
       .addFields(
         { name: '📋 **Staff Commands**', value: '━━━━━━━━━━━━━━━━━━━━━━━━', inline: false },
-        { name: '!setup <beast> <userId>', value: 'Assign a Tailed Beast to a user. **(Admin only)**', inline: false },
+        { name: '!setup <userId>', value: 'Assign a Tailed Beast to a user. **(Admin only)**', inline: false },
         { name: '!wipetb <userId>', value: 'Remove a Tailed Beast from a user. **(Admin only)**', inline: false },
         { name: '⚡ **Bonding Commands**', value: '━━━━━━━━━━━━━━━━━━━━━━━━', inline: false },
         { name: '!<beast>', value: 'Start a bonding session with a specific beast.\nExample: `!kurama`, `!shukaku`, `!isobu`', inline: false },
@@ -420,7 +420,7 @@ client.on('messageCreate', async (message) => {
     return;
   }
 
-  // ─── !setup command ───────────────────────────────────────
+  // ─── !setup command (Interactive with Select Menu) ───────────────────────────────────────
   if (content.startsWith('!setup')) {
     if (!message.member.permissions.has('Administrator')) {
       await message.reply('❌ You do not have permission to use this command.');
@@ -428,51 +428,39 @@ client.on('messageCreate', async (message) => {
     }
 
     const parts = content.split(/\s+/);
-    if (parts.length < 3) {
-      await message.reply('Usage: `!setup <beast> <userId>`');
+    if (parts.length < 2) {
+      await message.reply('Usage: `!setup <userId>`');
       return;
     }
 
-    const beastKey = parts[1].toLowerCase();
-    const userId = parts[2];
+    const userId = parts[1];
 
-    if (!BEAST_DATA[beastKey]) {
-      const beastList = Object.keys(BEAST_DATA).join(', ');
-      await message.reply(`❌ Unknown beast. Choose from: \`${beastList}\``);
-      return;
-    }
+    // Create select menu with all beasts
+    const selectMenu = new SelectMenuBuilder()
+      .setCustomId(`setup_beast_${userId}`)
+      .setPlaceholder('🐾 Select a Tailed Beast...')
+      .addOptions(
+        Object.entries(BEAST_DATA).map(([key, beast]) => ({
+          label: `${beast.emoji} ${beast.name} (${beast.tails}-Tail)`,
+          value: key,
+          description: `Seal ${beast.name} within the Jinchuriki`
+        }))
+      );
 
-    const data = loadData();
+    const row = new ActionRowBuilder().addComponents(selectMenu);
 
-    // Check if beast is already assigned to someone else
-    for (const [uid, udata] of Object.entries(data)) {
-      if (udata.beast === beastKey && uid !== userId) {
-        await message.reply(`❌ ${BEAST_DATA[beastKey].name} is already sealed within another user.`);
-        return;
-      }
-    }
-
-    const userData = getUserData(data, userId);
-    userData.beast = beastKey;
-    userData.bondPoints = 0;
-    userData.kcmUnlocked = false;
-    userData.questionsAsked = [];
-    saveData(data);
-
-    const beast = BEAST_DATA[beastKey];
     const embed = new EmbedBuilder()
-      .setTitle('🔗 Sealing Complete!')
-      .setDescription(`${beast.emoji} **${beast.name}** has been sealed within <@${userId}>!`)
-      .setColor(beast.color)
+      .setTitle('🔗 Jinchuriki Sealing Interface')
+      .setDescription(`Select a Tailed Beast to seal within <@${userId}>:`)
+      .setColor(0xFF8C00)
       .addFields(
-        { name: 'Jinchuriki', value: `<@${userId}>`, inline: true },
-        { name: 'Tailed Beast', value: `${beast.name} (${beast.tails}-Tailed)`, inline: true },
-        { name: 'Status', value: '🟢 Ready for Bonding', inline: true }
+        { name: 'Target Jinchuriki', value: `<@${userId}>`, inline: true },
+        { name: 'Available Beasts', value: `${Object.keys(BEAST_DATA).length} Tailed Beasts`, inline: true }
       )
-      .setFooter({ text: 'The bond begins now...' })
+      .setFooter({ text: 'Choose a beast from the dropdown menu below.' })
       .setTimestamp();
 
-    await message.reply({ embeds: [embed] });
+    await message.reply({ embeds: [embed], components: [row] });
     return;
   }
 
@@ -604,10 +592,10 @@ client.on('messageCreate', async (message) => {
         .setTitle(`${pointEmoji[points]} ${pointLabel[points]}`)
         .setDescription(`>>> ${feedback}`)
         .addFields(
-          { name: '\ud83c\udf1f Points Awarded', value: `${points > 0 ? '+' : ''}${points}`, inline: true },
-          { name: '\ud83d\udcaf Total Bond', value: `${userData.bondPoints} / ${KCM_THRESHOLD}`, inline: true },
-          { name: '\ud83d\udd04 Sessions Left', value: `${MAX_DAILY_INTERACTIONS - userData.interactionCountToday} / ${MAX_DAILY_INTERACTIONS}`, inline: true },
-          { name: '\ud83d\udcca Bond Progress', value: progressBar, inline: false }
+          { name: '⭐ Points Awarded', value: `${points > 0 ? '+' : ''}${points}`, inline: true },
+          { name: '💯 Total Bond', value: `${userData.bondPoints} / ${KCM_THRESHOLD}`, inline: true },
+          { name: '🔄 Sessions Left', value: `${MAX_DAILY_INTERACTIONS - userData.interactionCountToday} / ${MAX_DAILY_INTERACTIONS}`, inline: true },
+          { name: '📊 Bond Progress', value: progressBar, inline: false }
         )
         .setColor(beast.color)
         .setFooter({ text: `${beast.name} nods...` })
@@ -631,6 +619,53 @@ client.on('messageCreate', async (message) => {
         await message.reply({ embeds: [embed] });
       }
     }
+  }
+});
+
+// ─── Select Menu Interaction Handler ───────────────────────────────────────
+client.on('interactionCreate', async (interaction) => {
+  if (!interaction.isStringSelectMenu()) return;
+
+  if (interaction.customId.startsWith('setup_beast_')) {
+    const userId = interaction.customId.replace('setup_beast_', '');
+    const beastKey = interaction.values[0];
+
+    if (!BEAST_DATA[beastKey]) {
+      await interaction.reply('❌ Invalid beast selected.');
+      return;
+    }
+
+    const data = loadData();
+
+    // Check if beast is already assigned to someone else
+    for (const [uid, udata] of Object.entries(data)) {
+      if (udata.beast === beastKey && uid !== userId) {
+        await interaction.reply(`❌ ${BEAST_DATA[beastKey].name} is already sealed within another user.`);
+        return;
+      }
+    }
+
+    const userData = getUserData(data, userId);
+    userData.beast = beastKey;
+    userData.bondPoints = 0;
+    userData.kcmUnlocked = false;
+    userData.questionsAsked = [];
+    saveData(data);
+
+    const beast = BEAST_DATA[beastKey];
+    const embed = new EmbedBuilder()
+      .setTitle('🔗 Sealing Complete!')
+      .setDescription(`${beast.emoji} **${beast.name}** has been sealed within <@${userId}>!`)
+      .setColor(beast.color)
+      .addFields(
+        { name: 'Jinchuriki', value: `<@${userId}>`, inline: true },
+        { name: 'Tailed Beast', value: `${beast.name} (${beast.tails}-Tailed)`, inline: true },
+        { name: 'Status', value: '🟢 Ready for Bonding', inline: true }
+      )
+      .setFooter({ text: 'The bond begins now...' })
+      .setTimestamp();
+
+    await interaction.reply({ embeds: [embed] });
   }
 });
 
