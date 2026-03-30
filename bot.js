@@ -430,6 +430,7 @@ STRICT EVALUATION PROTOCOL:
 4. THE "WEIGHT" TEST: You are a Tailed Beast. Your questions are about life, death, and power. If they answer a life-or-death question with a casual one-liner, they have FAILED.
 5. NO PITY: Do not reward "effort" if the result is mediocre. Do not be "encouraging" to a lazy student. You are a legendary entity; demand excellence or give nothing.
 6. DEPTH RECOGNITION: If the Jinchuriki provides a multi-sentence, philosophical, or lore-heavy answer that shows genuine reflection, you MUST award 1 or 2 points. Do not be so strict that you ignore actual quality.
+7. POSITIVE RECOGNITION: If an answer is long (over 100 characters) and clearly addresses the prompt with unique thought, it is almost certainly a 1 or 2. Do not fail it just because it uses common words. Look for the *intent* and *depth*.
 
 RESPONSE FORMAT:
 You MUST respond with valid JSON only.
@@ -458,7 +459,7 @@ You MUST respond with valid JSON only.
     // we override it to 0 if it doesn't meet a secondary length bar.
     // However, we only do this if the AI's reasoning doesn't explicitly mention "depth" or "insight".
     const reasoning = (result.reasoning || "").toLowerCase();
-    const hasDepth = reasoning.includes("depth") || reasoning.includes("insight") || reasoning.includes("profound") || reasoning.includes("lore") || reasoning.includes("exceptional") || reasoning.includes("passable");
+    const hasDepth = reasoning.includes("depth") || reasoning.includes("insight") || reasoning.includes("profound") || reasoning.includes("lore") || reasoning.includes("exceptional") || reasoning.includes("passable") || reasoning.includes("vulnerability") || reasoning.includes("unique");
     
     if (result.points > 0 && answer.length < 20 && !hasDepth) {
       result.points = 0;
