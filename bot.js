@@ -37,13 +37,13 @@ if (fs.existsSync(QUESTIONS_FILE)) {
 // ─────────────────────────────────────────────
 const BEAST_DATA = {
   shukaku: { name: "Shukaku", tails: 1, emoji: "🏜️", color: 0xC2B280, channelId: "1488142070848946349" },
-  matatabi: { name: "Matatabi", tails: 2, emoji: "🔵", color: 0x1E90FF, channelId: "1488142174045343774" },
+  matatabis: { name: "Matatabis", tails: 2, emoji: "🔵", color: 0x1E90FF, channelId: "1488142174045343774" },
   isobu: { name: "Isobu", tails: 3, emoji: "🐢", color: 0x708090, channelId: "1488142308623908966" },
-  songoku: { name: "Son Gokū", tails: 4, emoji: "🌋", color: 0xFF4500, channelId: "1488142674530795611" },
-  kokuo: { name: "Kokuō", tails: 5, emoji: "🐎", color: 0x8B8878, channelId: "1488142802478174349" },
-  saiken: { name: "Saiken", tails: 6, emoji: "🫧", color: 0xE6E6FA, channelId: "1488142966282387527" },
-  chomei: { name: "Chōmei", tails: 7, emoji: "🪲", color: 0x32CD32, channelId: "1488143101452095591" },
-  gyuki: { name: "Gyūki", tails: 8, emoji: "🐙", color: 0x4B0082, channelId: "1488143484836905031" },
+  songoku: { name: "Son Goku", tails: 4, emoji: "🌋", color: 0xFF4500, channelId: "1488142674530795611" },
+  kokuo: { name: "Kokuo", tails: 5, emoji: "🐎", color: 0x8B8878, channelId: "1488142802478174349" },
+  saikens: { name: "Saikens", tails: 6, emoji: "🫧", color: 0xE6E6FA, channelId: "1488142966282387527" },
+  chomeis: { name: "Chomeis", tails: 7, emoji: "🪲", color: 0x32CD32, channelId: "1488143101452095591" },
+  gyuki: { name: "Gyuki", tails: 8, emoji: "🐙", color: 0x4B0082, channelId: "1488143484836905031" },
   kurama: { name: "Kurama", tails: 9, emoji: "🦊", color: 0xFF8C00, channelId: "1488143665196171424" }
 };
 
@@ -52,12 +52,12 @@ const BEAST_DATA = {
 // ─────────────────────────────────────────────
 const WRONG_CHOICE_RESPONSES = {
   shukaku: ["Hmph! You're as weak as a sandcastle in a storm!", "WRONG! You think that's the path to power?!", "Ore-sama is insulted!", "Incorrect! You don't deserve my sand!", "Zero points! You're not worthy!"],
-  matatabi: ["How disappointing. That choice lacked elegance.", "A cat always lands on its feet, but you have stumbled.", "My blue flames burn for the refined. You are crude.", "That was not the path of grace.", "Incorrect. You have failed to honor the bond."],
+  matatabis: ["How disappointing. That choice lacked elegance.", "A cat always lands on its feet, but you have stumbled.", "My blue flames burn for the refined. You are crude.", "That was not the path of grace.", "Incorrect. You have failed to honor the bond."],
   isobu: ["Oh... that's not the right heart.", "Incorrect... the ocean is quiet, but your choice was wrong.", "I... I expected more depth from you.", "The tides don't lie, but your heart just did.", "Even a pebble knows better than that."],
   songoku: ["A warrior must have honor! That choice was a disgrace!", "Son Gokū is not impressed!", "Incorrect! A true Sage would never choose such a path!", "You call yourself a warrior? You're just a tool!", "That choice was a surrender!"],
   kokuo: ["...Incorrect. The wind carries the truth, but you chose the lie.", "Wisdom is silent; your choice was loud and wrong.", "I run toward the horizon, but you are stuck in the mud.", "That was not the path of freedom.", "Honor requires truth. You have shown neither."],
-  saiken: ["Oh dear... that choice just popped like an empty bubble.", "Even my slime has more substance than that decision.", "I'm a little sad... I thought you were kinder.", "That choice dissolved into nothing.", "Bubbles are fragile, but your conviction is even weaker."],
-  chomei: ["NOT LUCKY! That was the wrong choice!", "Aww, come on! Even a caterpillar knows better!", "Zero points! You need to fly higher!", "That was a total miss! No luck for you today!", "Fū would never have chosen that!"],
+  saikens: ["Oh dear... that choice just popped like an empty bubble.", "Even my slime has more substance than that decision.", "I'm a little sad... I thought you were kinder.", "That choice dissolved into nothing.", "Bubbles are fragile, but your conviction is even weaker."],
+  chomeis: ["NOT LUCKY! That was the wrong choice!", "Aww, come on! Even a caterpillar knows better!", "Zero points! You need to fly higher!", "That was a total miss! No luck for you today!", "Fū would never have chosen that!"],
   gyuki: ["Incorrect. That's a forfeit of character.", "Killer B would rap about how weak that choice was.", "A warrior's mind must be sharp. Your choice was dull.", "No excuses. You chose the wrong path.", "I've seen ink dry with more purpose than that decision."],
   kurama: ["Hmph. Centuries of history, and you still choose the path of a fool.", "Naruto would have known better.", "I can sense your uncertainty. You chose the safe path.", "Don't insult my intelligence with such a pathetic choice.", "You want my power? Earn it with conviction."]
 };
